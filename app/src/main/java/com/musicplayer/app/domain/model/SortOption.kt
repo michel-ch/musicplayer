@@ -1,0 +1,30 @@
+package com.musicplayer.app.domain.model
+
+enum class SortOption(val label: String) {
+    TITLE_ASC("Title (A-Z)"),
+    TITLE_DESC("Title (Z-A)"),
+    ARTIST_ASC("Artist (A-Z)"),
+    ARTIST_DESC("Artist (Z-A)"),
+    ALBUM_ASC("Album (A-Z)"),
+    ALBUM_DESC("Album (Z-A)"),
+    DURATION_ASC("Duration (Short-Long)"),
+    DURATION_DESC("Duration (Long-Short)"),
+    DATE_ADDED_ASC("Date Added (Old-New)"),
+    DATE_ADDED_DESC("Date Added (New-Old)"),
+    DATE_MODIFIED_ASC("Date Modified (Old-New)"),
+    DATE_MODIFIED_DESC("Date Modified (New-Old)"),
+    SIZE_ASC("Size (Small-Large)"),
+    SIZE_DESC("Size (Large-Small)"),
+    TRACK_NUMBER("Track Number"),
+    DISC_AND_TRACK("Disc & Track Number"),
+    FILENAME_ASC("Filename (A-Z)"),
+    FILENAME_DESC("Filename (Z-A)"),
+    YEAR_ASC("Year (Old-New)"),
+    YEAR_DESC("Year (New-Old)"),
+    GENRE("Genre"),
+    COMPOSER_ASC("Composer (A-Z)"),
+    COMPOSER_DESC("Composer (Z-A)"),
+    FORMAT("File Format"),
+    SHUFFLE("Shuffle"),
+    SHUFFLE_ORDER("Shuffle Order")
+}

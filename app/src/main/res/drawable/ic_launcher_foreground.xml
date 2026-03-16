@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Music note: vertical stem -->
+    <path
+        android:fillColor="#00BCD4"
+        android:pathData="M56,34 L56,62 L59,62 L59,34Z" />
+    <!-- Music note: flag/beam -->
+    <path
+        android:fillColor="#00BCD4"
+        android:pathData="M59,34 Q59,34 67,38 Q69,39 69,41 L69,44 Q69,42 67,41 Q59,37 59,37Z" />
+    <!-- Music note: oval note head -->
+    <path
+        android:fillColor="#00BCD4"
+        android:pathData="M48,64 Q48,60 52,59 Q56,58 59,60 Q62,62 62,66 Q62,70 58,71 Q54,72 51,70 Q48,68 48,64Z" />
+    <!-- Circular disc/vinyl ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#26C6DA"
+        android:strokeWidth="2"
+        android:pathData="M54,54m-26,0a26,26 0,1 1,52 0a26,26 0,1 1,-52 0" />
+    <!-- Inner ring accent -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#00ACC1"
+        android:strokeWidth="1"
+        android:strokeAlpha="0.5"
+        android:pathData="M54,54m-19,0a19,19 0,1 1,38 0a19,19 0,1 1,-38 0" />
+</vector>

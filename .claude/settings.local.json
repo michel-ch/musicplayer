@@ -20,7 +20,8 @@
       "Bash(cmd /c \"cd /d C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player && gradlew.bat assembleDebug 2>&1\")",
       "Bash(cmd /c \"cd /d C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player & gradlew assembleDebug\")",
       "Bash(cmd.exe /c \"cd /d C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player && call gradlew.bat assembleDebug\")",
-      "Bash(powershell -Command:*)"
+      "Bash(powershell -Command:*)",
+      "Bash(cmd.exe /c \"dir /b \\\\\"C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player\\\\\"\" 2>&1 | grep -i nul)"
     ]
   }
 }

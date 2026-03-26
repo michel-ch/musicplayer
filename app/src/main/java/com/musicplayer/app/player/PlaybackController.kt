@@ -5,9 +5,9 @@ import android.content.Context
 import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import org.json.JSONArray
 import org.json.JSONObject
@@ -17,6 +17,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.musicplayer.app.domain.model.Song
+import com.musicplayer.app.domain.repository.MusicRepository
 import com.musicplayer.app.player.service.PlaybackService
 import com.google.common.util.concurrent.MoreExecutors
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -38,7 +39,8 @@ import javax.inject.Singleton
 class PlaybackController @Inject constructor(
     @ApplicationContext private val context: Context,
     private val queueManager: QueueManager,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val musicRepository: MusicRepository
 ) {
     private var mediaController: MediaController? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -60,6 +62,7 @@ class PlaybackController @Inject constructor(
     companion object {
         private val LAST_QUEUE_JSON = stringPreferencesKey("last_queue_json")
         private val LAST_QUEUE_INDEX = intPreferencesKey("last_queue_index")
+        val CONTINUE_TO_NEXT_FOLDER = booleanPreferencesKey("continue_to_next_folder")
     }
 
     init {
@@ -258,6 +261,23 @@ class PlaybackController @Inject constructor(
                             setMediaItems(queue.map { it.toMediaItem() }, idx, 0)
                             prepare()
                             if (pendingPlay) { play(); pendingPlay = false }
+                        } else {
+                            // Service still running with items — sync state so MiniPlayer
+                            // and play/pause reflect reality after a reconnect.
+                            val currentIdx = currentMediaItemIndex
+                            val validIdx = if (currentIdx in queue.indices) currentIdx
+                                           else queueManager.currentIndex.value.coerceAtLeast(0)
+                            if (validIdx in queue.indices) queueManager.skipToIndex(validIdx)
+                            val song = queueManager.currentSong.value
+                            if (song != null) {
+                                _playbackState.update {
+                                    it.copy(
+                                        currentSong = song,
+                                        isPlaying = isPlaying,
+                                        duration = duration.coerceAtLeast(0)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -322,8 +342,50 @@ class PlaybackController @Inject constructor(
                 }
             }
             RepeatMode.OFF -> {
-                _playbackState.update { it.copy(isPlaying = false) }
+                scope.launch {
+                    val prefs = dataStore.data.first()
+                    val continueToNextFolder = prefs[CONTINUE_TO_NEXT_FOLDER] ?: false
+                    if (continueToNextFolder) {
+                        playNextFolder()
+                    } else {
+                        _playbackState.update { it.copy(isPlaying = false) }
+                    }
+                }
             }
+        }
+    }
+
+    private suspend fun playNextFolder() {
+        val currentSong = _playbackState.value.currentSong ?: return
+        val currentFolderPath = currentSong.folderPath
+
+        val allFolders = musicRepository.getFolders().first()
+        val sortedFolders = allFolders.sortedBy { it.name.lowercase() }
+
+        val currentFolderIdx = sortedFolders.indexOfFirst { it.path == currentFolderPath }
+        if (currentFolderIdx < 0) {
+            _playbackState.update { it.copy(isPlaying = false) }
+            return
+        }
+
+        val nextFolderIdx = currentFolderIdx + 1
+        if (nextFolderIdx >= sortedFolders.size) {
+            // Last folder — stop
+            _playbackState.update { it.copy(isPlaying = false) }
+            return
+        }
+
+        val nextFolder = sortedFolders[nextFolderIdx]
+        val nextSongs = musicRepository.getSongsByFolder(nextFolder.path).first()
+            .sortedBy { it.fileName.lowercase() }
+
+        if (nextSongs.isEmpty()) {
+            _playbackState.update { it.copy(isPlaying = false) }
+            return
+        }
+
+        scope.launch(Dispatchers.Main) {
+            playSongs(nextSongs, 0)
         }
     }
 
@@ -390,6 +452,9 @@ class PlaybackController @Inject constructor(
                         controller.setMediaItems(listOf(song.toMediaItem()), 0, 0)
                     }
                     controller.prepare()
+                } else if (controller.playbackState == Player.STATE_ENDED) {
+                    // Queue finished — seek back to current song start so play restarts it
+                    controller.seekTo(queueManager.currentIndex.value.coerceAtLeast(0), 0)
                 }
                 controller.play()
             }

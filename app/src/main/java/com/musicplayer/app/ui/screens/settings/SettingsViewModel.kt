@@ -33,6 +33,7 @@ class SettingsViewModel @Inject constructor(
         private val AUTO_RESUME_HEADSET_KEY = booleanPreferencesKey("auto_resume_headset")
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
         private val SHOW_LOCK_SCREEN_CONTROLS_KEY = booleanPreferencesKey("show_lock_screen_controls")
+        private val CONTINUE_TO_NEXT_FOLDER_KEY = booleanPreferencesKey("continue_to_next_folder")
     }
 
     val darkMode: StateFlow<Boolean> = dataStore.data
@@ -78,6 +79,10 @@ class SettingsViewModel @Inject constructor(
         .map { prefs -> prefs[SHOW_LOCK_SCREEN_CONTROLS_KEY] ?: true }
         .stateIn(viewModelScope, SharingStarted.Lazily, true)
 
+    val continueToNextFolder: StateFlow<Boolean> = dataStore.data
+        .map { prefs -> prefs[CONTINUE_TO_NEXT_FOLDER_KEY] ?: false }
+        .stateIn(viewModelScope, SharingStarted.Lazily, false)
+
     fun toggleDarkMode() = toggleBoolPref(DARK_MODE_KEY, false)
     fun toggleGaplessPlayback() = toggleBoolPref(GAPLESS_PLAYBACK_KEY, true)
     fun toggleCrossfade() = toggleBoolPref(CROSSFADE_ENABLED_KEY, false)
@@ -87,6 +92,7 @@ class SettingsViewModel @Inject constructor(
     fun toggleAutoResumeOnHeadset() = toggleBoolPref(AUTO_RESUME_HEADSET_KEY, false)
     fun toggleKeepScreenOn() = toggleBoolPref(KEEP_SCREEN_ON_KEY, false)
     fun toggleShowLockScreenControls() = toggleBoolPref(SHOW_LOCK_SCREEN_CONTROLS_KEY, true)
+    fun toggleContinueToNextFolder() = toggleBoolPref(CONTINUE_TO_NEXT_FOLDER_KEY, false)
 
     private fun toggleBoolPref(key: Preferences.Key<Boolean>, default: Boolean) {
         viewModelScope.launch {

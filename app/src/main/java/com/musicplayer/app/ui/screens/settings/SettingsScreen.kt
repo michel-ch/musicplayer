@@ -114,6 +114,7 @@ fun SettingsScreen(
     val autoResumeOnHeadset by viewModel.autoResumeOnHeadset.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val showLockScreenControls by viewModel.showLockScreenControls.collectAsState()
+    val continueToNextFolder by viewModel.continueToNextFolder.collectAsState()
 
     val context = LocalContext.current
     val listState = rememberLazyListState()
@@ -277,6 +278,15 @@ fun SettingsScreen(
                     subtitle = "Fade between tracks",
                     checked = crossfadeEnabled,
                     onToggle = { viewModel.toggleCrossfade() }
+                )
+            }
+
+            item {
+                SettingsToggleRow(
+                    title = "Continue to Next Folder",
+                    subtitle = "When queue ends, play next folder alphabetically",
+                    checked = continueToNextFolder,
+                    onToggle = { viewModel.toggleContinueToNextFolder() }
                 )
             }
 

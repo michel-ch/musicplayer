@@ -63,7 +63,7 @@ fun SongItem(
     ) {
         // Album art with playing indicator overlay
         Box {
-            AlbumArtImage(uri = SongArtModel(song.uri, song.albumArtUri, song.filePath), size = 48.dp, cornerRadius = 12.dp)
+            AlbumArtImage(uri = SongArtModel(song.uri, song.albumArtUri, song.filePath))
 
             if (isPlaying) {
                 // Animated equalizer bars overlay

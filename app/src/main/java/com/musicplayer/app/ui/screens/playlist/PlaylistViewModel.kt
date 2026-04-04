@@ -51,9 +51,7 @@ class PlaylistViewModel @Inject constructor(
             val prefs = dataStore.data.first()
             val saved = prefs[SORT_KEY]
             if (saved != null) {
-                runCatching { SortOption.valueOf(saved) }.getOrNull()?.let {
-                    _sortOption.value = it
-                }
+                _sortOption.value = SortOption.valueOf(saved)
             }
         }
     }

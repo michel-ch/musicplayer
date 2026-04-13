@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -252,7 +253,7 @@ class MusicRepositoryImpl @Inject constructor(
                 try {
                     val rows = context.contentResolver.delete(song.uri, null, null)
                     if (rows > 0) {
-                        songsCache.value = songsCache.value.filter { it.id != song.id }
+                        songsCache.update { songs -> songs.filter { it.id != song.id } }
                         return DeleteResult.Deleted
                     }
                 } catch (e: SecurityException) {
@@ -279,7 +280,7 @@ class MusicRepositoryImpl @Inject constructor(
             if (song.filePath.isNotEmpty()) {
                 val file = java.io.File(song.filePath)
                 if (file.exists() && file.delete()) {
-                    songsCache.value = songsCache.value.filter { it.id != song.id }
+                    songsCache.update { songs -> songs.filter { it.id != song.id } }
                     return DeleteResult.Deleted
                 }
             }
@@ -290,6 +291,6 @@ class MusicRepositoryImpl @Inject constructor(
     }
 
     override suspend fun removeFromCache(song: Song) {
-        songsCache.value = songsCache.value.filter { it.id != song.id }
+        songsCache.update { songs -> songs.filter { it.id != song.id } }
     }
 }

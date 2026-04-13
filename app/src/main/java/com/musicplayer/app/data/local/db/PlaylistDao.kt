@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -46,4 +47,19 @@ interface PlaylistDao {
 
     @Query("SELECT COUNT(*) FROM playlist_songs WHERE playlistId = :playlistId")
     fun getPlaylistSongCount(playlistId: Long): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM playlist_songs WHERE playlistId = :playlistId")
+    suspend fun getPlaylistSongCountSync(playlistId: Long): Int
+
+    @Transaction
+    suspend fun addSongAtEnd(playlistId: Long, songId: Long) {
+        val count = getPlaylistSongCountSync(playlistId)
+        insertPlaylistSong(
+            PlaylistSongEntity(
+                playlistId = playlistId,
+                songId = songId,
+                position = count
+            )
+        )
+    }
 }

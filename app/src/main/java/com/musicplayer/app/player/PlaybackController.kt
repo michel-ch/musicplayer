@@ -3,6 +3,7 @@ package com.musicplayer.app.player
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -50,11 +52,8 @@ class PlaybackController @Inject constructor(
 
     private val _repeatMode = MutableStateFlow(RepeatMode.OFF)
 
-    @Volatile
-    private var pendingRestoreQueue: List<Song>? = null
-
-    @Volatile
-    private var pendingRestoreIndex: Int = 0
+    private data class PendingRestore(val queue: List<Song>, val index: Int)
+    private val pendingRestore = AtomicReference<PendingRestore?>(null)
 
     @Volatile
     private var pendingPlay: Boolean = false
@@ -124,8 +123,7 @@ class PlaybackController @Inject constructor(
                     }
                 }
             } else {
-                pendingRestoreQueue = queueSongs
-                pendingRestoreIndex = startIndex
+                pendingRestore.set(PendingRestore(queueSongs, startIndex))
             }
         }
     }
@@ -197,6 +195,7 @@ class PlaybackController @Inject constructor(
                 )
             }
         } catch (e: Exception) {
+            Log.e("PlaybackController", "Failed to deserialize queue", e)
             emptyList()
         }
     }
@@ -221,12 +220,14 @@ class PlaybackController @Inject constructor(
             mediaController = controllerFuture.get()
             setupPlayerListener()
 
-            val songs = pendingRestoreQueue
-            if (songs != null) {
+            val restored = pendingRestore.getAndSet(null)
+            if (restored != null) {
+                val songs = restored.queue
+                val restoreIndex = restored.index
                 // restoreLastSong() finished before connectToService() — apply the queue now
                 mediaController?.apply {
                     if (mediaItemCount == 0) {
-                        setMediaItems(songs.map { it.toMediaItem() }, pendingRestoreIndex, 0)
+                        setMediaItems(songs.map { it.toMediaItem() }, restoreIndex, 0)
                         prepare()
                         if (pendingPlay) { play(); pendingPlay = false }
                     } else {
@@ -247,7 +248,6 @@ class PlaybackController @Inject constructor(
                         }
                     }
                 }
-                pendingRestoreQueue = null
             } else {
                 // connectToService() fired first — restoreLastSong() will handle
                 // loading media items once it reads from DataStore.

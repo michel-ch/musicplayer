@@ -22,6 +22,7 @@ class QueueManager @Inject constructor() {
     private val _shuffleEnabled = MutableStateFlow(false)
     val shuffleEnabled: StateFlow<Boolean> = _shuffleEnabled.asStateFlow()
 
+    @Volatile
     private var originalQueue: List<Song> = emptyList()
 
     fun setQueue(songs: List<Song>, startIndex: Int = 0) {
@@ -90,8 +91,16 @@ class QueueManager @Inject constructor() {
             _queue.value = mutable
 
             when {
+                mutable.isEmpty() -> {
+                    _currentIndex.value = -1
+                    _currentSong.value = null
+                }
                 index < _currentIndex.value -> _currentIndex.value -= 1
-                index == _currentIndex.value -> updateCurrentSong()
+                index == _currentIndex.value -> {
+                    // Clamp index if we removed the last item
+                    _currentIndex.value = _currentIndex.value.coerceAtMost(mutable.size - 1)
+                    updateCurrentSong()
+                }
             }
         }
     }

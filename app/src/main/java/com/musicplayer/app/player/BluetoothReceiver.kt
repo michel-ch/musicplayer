@@ -1,5 +1,6 @@
 package com.musicplayer.app.player
 
+import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -17,7 +18,13 @@ class BluetoothReceiver(
     override fun onReceive(context: Context?, intent: Intent?) {
         when (intent?.action) {
             BluetoothDevice.ACTION_ACL_CONNECTED -> {
-                onDeviceConnected()
+                // Only resume for audio Bluetooth devices, not mice/keyboards/etc.
+                @Suppress("DEPRECATION")
+                val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                val majorClass = device?.bluetoothClass?.majorDeviceClass
+                if (majorClass == BluetoothClass.Device.Major.AUDIO_VIDEO) {
+                    onDeviceConnected()
+                }
             }
             AudioManager.ACTION_HEADSET_PLUG -> {
                 val state = intent.getIntExtra("state", 0)

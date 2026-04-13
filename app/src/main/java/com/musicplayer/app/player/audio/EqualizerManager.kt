@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -79,6 +80,7 @@ class EqualizerManager @Inject constructor(
     private val _activeTab = MutableStateFlow(0)
     val activeTab: StateFlow<Int> = _activeTab.asStateFlow()
 
+    @Synchronized
     fun initialize(audioSessionId: Int) {
         release()
         try {
@@ -159,14 +161,14 @@ class EqualizerManager @Inject constructor(
 
     fun setBandLevel(band: Int, level: Int) {
         equalizer?.setBandLevel(band.toShort(), level.toShort())
-        val current = _bandLevels.value.toMutableList()
-        if (band < current.size) {
-            current[band] = level
-            _bandLevels.value = current
+        _bandLevels.update { current ->
+            if (band < current.size) {
+                current.toMutableList().also { it[band] = level }
+            } else current
         }
         _currentPreset.value = -1
         scope.launch {
-            dataStore.edit { it[EQ_BANDS_KEY] = current.joinToString(",") }
+            dataStore.edit { it[EQ_BANDS_KEY] = _bandLevels.value.joinToString(",") }
         }
     }
 
@@ -188,12 +190,13 @@ class EqualizerManager @Inject constructor(
     }
 
     fun setBassBoost(strength: Int) {
+        val clamped = strength.coerceIn(0, 1000)
         bassBoost?.let { bb ->
-            bb.enabled = strength > 0
-            bb.setStrength(strength.toShort())
-            _bassBoostStrength.value = strength
+            bb.enabled = clamped > 0
+            bb.setStrength(clamped.toShort())
+            _bassBoostStrength.value = clamped
             scope.launch {
-                dataStore.edit { it[BASS_BOOST_KEY] = strength }
+                dataStore.edit { it[BASS_BOOST_KEY] = clamped }
             }
         }
     }
@@ -268,6 +271,7 @@ class EqualizerManager @Inject constructor(
         }
     }
 
+    @Synchronized
     fun release() {
         equalizer?.release()
         equalizer = null

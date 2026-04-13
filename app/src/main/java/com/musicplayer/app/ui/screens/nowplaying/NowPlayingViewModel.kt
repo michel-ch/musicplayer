@@ -1,7 +1,6 @@
 package com.musicplayer.app.ui.screens.nowplaying
 
 import androidx.lifecycle.ViewModel
-import com.musicplayer.app.domain.repository.PlaylistRepository
 import com.musicplayer.app.player.PlaybackController
 import com.musicplayer.app.player.PlaybackState
 import com.musicplayer.app.player.QueueManager
@@ -12,8 +11,7 @@ import javax.inject.Inject
 @HiltViewModel
 class NowPlayingViewModel @Inject constructor(
     val playbackController: PlaybackController,
-    val queueManager: QueueManager,
-    private val playlistRepository: PlaylistRepository
+    val queueManager: QueueManager
 ) : ViewModel() {
 
     val playbackState: StateFlow<PlaybackState> = playbackController.playbackState

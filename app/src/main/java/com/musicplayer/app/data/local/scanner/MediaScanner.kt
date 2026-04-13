@@ -175,8 +175,6 @@ class MediaScanner @Inject constructor(
     ) {
         val existingPaths = songs.map { it.filePath }.toSet()
         val audioExtensions = setOf("mp3", "m4a", "flac", "wav", "ogg", "aac", "wma", "opus")
-        var customId = -1L
-
         for (path in folderPaths) {
             val rootFolder = File(path)
             val canAccessViaFile = rootFolder.exists() && rootFolder.isDirectory
@@ -191,7 +189,7 @@ class MediaScanner @Inject constructor(
                     val folderName = File(folderPath).name
 
                     songs.add(Song(
-                        id = customId--,
+                        id = -(file.absolutePath.hashCode().toLong() and 0x7FFFFFFF) - 1,
                         title = file.nameWithoutExtension,
                         artist = "Unknown Artist",
                         album = "Unknown Album",
@@ -216,9 +214,7 @@ class MediaScanner @Inject constructor(
                 val treeUriString = folderUris[path] ?: continue
                 val treeUri = Uri.parse(treeUriString)
                 val docFile = DocumentFile.fromTreeUri(context, treeUri) ?: continue
-                scanDocumentFileRecursive(docFile, path, audioExtensions, existingPaths, songs, customId).also {
-                    customId = it
-                }
+                scanDocumentFileRecursive(docFile, path, audioExtensions, existingPaths, songs)
             }
         }
     }
@@ -228,13 +224,12 @@ class MediaScanner @Inject constructor(
         rootPath: String,
         audioExtensions: Set<String>,
         existingPaths: Set<String>,
-        songs: MutableList<Song>,
-        startId: Long
-    ): Long {
-        var customId = startId
-        for (child in dir.listFiles()) {
+        songs: MutableList<Song>
+    ) {
+        val children = dir.listFiles() ?: return
+        for (child in children) {
             if (child.isDirectory) {
-                customId = scanDocumentFileRecursive(child, rootPath, audioExtensions, existingPaths, songs, customId)
+                scanDocumentFileRecursive(child, rootPath, audioExtensions, existingPaths, songs)
             } else if (child.isFile) {
                 val name = child.name ?: continue
                 val ext = name.substringAfterLast('.', "").lowercase()
@@ -245,7 +240,7 @@ class MediaScanner @Inject constructor(
                 val folderName = dir.name ?: File(rootPath).name
 
                 songs.add(Song(
-                    id = customId--,
+                    id = -(uri.toString().hashCode().toLong() and 0x7FFFFFFF) - 1,
                     title = name.substringBeforeLast('.'),
                     artist = "Unknown Artist",
                     album = "Unknown Album",
@@ -266,6 +261,5 @@ class MediaScanner @Inject constructor(
                 ))
             }
         }
-        return customId
     }
 }

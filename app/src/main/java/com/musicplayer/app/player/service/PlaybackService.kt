@@ -57,7 +57,9 @@ class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
     private var bluetoothReceiver: BluetoothReceiver? = null
+    private var bluetoothReceiverRegistered = false
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    @Volatile
     private var lastArtworkMediaId: String? = null
 
     override fun onCreate() {
@@ -124,6 +126,7 @@ class PlaybackService : MediaSessionService() {
                 mediaItem ?: return
                 val mediaId = mediaItem.mediaId
                 if (mediaId == lastArtworkMediaId) return
+                lastArtworkMediaId = mediaId
                 serviceScope.launch(Dispatchers.IO) {
                     updateNotificationArtwork(player, mediaItem)
                 }
@@ -143,11 +146,16 @@ class PlaybackService : MediaSessionService() {
                 }
             }
         }
-        val filter = IntentFilter().apply {
-            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
-            addAction(AudioManager.ACTION_HEADSET_PLUG)
+        try {
+            val filter = IntentFilter().apply {
+                addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+                addAction(AudioManager.ACTION_HEADSET_PLUG)
+            }
+            registerReceiver(bluetoothReceiver, filter)
+            bluetoothReceiverRegistered = true
+        } catch (_: SecurityException) {
+            // BLUETOOTH_CONNECT permission not granted on API 31+
         }
-        registerReceiver(bluetoothReceiver, filter)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
@@ -163,6 +171,7 @@ class PlaybackService : MediaSessionService() {
 
     private fun updateNotificationArtwork(player: Player, mediaItem: MediaItem) {
         val uri = mediaItem.localConfiguration?.uri ?: return
+        val mediaId = mediaItem.mediaId
         val retriever = MediaMetadataRetriever()
         try {
             retriever.setDataSource(this, uri)
@@ -175,23 +184,26 @@ class PlaybackService : MediaSessionService() {
                     .setMediaMetadata(updatedMetadata)
                     .build()
                 serviceScope.launch(Dispatchers.Main) {
-                    lastArtworkMediaId = mediaItem.mediaId
-                    val index = player.currentMediaItemIndex
-                    player.replaceMediaItem(index, updatedItem)
+                    // Verify this is still the current song before replacing
+                    if (lastArtworkMediaId == mediaId) {
+                        val index = player.currentMediaItemIndex
+                        player.replaceMediaItem(index, updatedItem)
+                    }
                 }
-            } else {
-                lastArtworkMediaId = mediaItem.mediaId
             }
         } catch (_: Exception) {
-            lastArtworkMediaId = mediaItem.mediaId
+            // Metadata extraction failed for this track
         } finally {
             retriever.release()
         }
     }
 
     override fun onDestroy() {
-        bluetoothReceiver?.let {
-            try { unregisterReceiver(it) } catch (_: Exception) {}
+        if (bluetoothReceiverRegistered) {
+            bluetoothReceiver?.let {
+                try { unregisterReceiver(it) } catch (_: Exception) {}
+            }
+            bluetoothReceiverRegistered = false
         }
         bluetoothReceiver = null
         equalizerManager.release()

@@ -11,5 +11,5 @@ data class PlaybackState(
     val repeatMode: RepeatMode = RepeatMode.OFF
 ) {
     val progress: Float
-        get() = if (duration > 0) currentPosition.toFloat() / duration else 0f
+        get() = if (duration > 0) (currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f
 }

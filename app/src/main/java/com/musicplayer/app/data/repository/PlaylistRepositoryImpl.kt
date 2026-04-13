@@ -1,10 +1,8 @@
 package com.musicplayer.app.data.repository
 
 import com.musicplayer.app.data.local.db.FavoriteDao
-import com.musicplayer.app.data.local.db.FavoriteEntity
 import com.musicplayer.app.data.local.db.PlaylistDao
 import com.musicplayer.app.data.local.db.PlaylistEntity
-import com.musicplayer.app.data.local.db.PlaylistSongEntity
 import com.musicplayer.app.domain.model.Playlist
 import com.musicplayer.app.domain.repository.PlaylistRepository
 import kotlinx.coroutines.flow.Flow
@@ -47,14 +45,7 @@ class PlaylistRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addSongToPlaylist(playlistId: Long, songId: Long) {
-        val count = playlistDao.getPlaylistSongCount(playlistId).first()
-        playlistDao.insertPlaylistSong(
-            PlaylistSongEntity(
-                playlistId = playlistId,
-                songId = songId,
-                position = count
-            )
-        )
+        playlistDao.addSongAtEnd(playlistId, songId)
     }
 
     override suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long) =
@@ -67,11 +58,6 @@ class PlaylistRepositoryImpl @Inject constructor(
         favoriteDao.isFavorite(songId)
 
     override suspend fun toggleFavorite(songId: Long) {
-        val isFav = favoriteDao.isFavorite(songId).first()
-        if (isFav) {
-            favoriteDao.removeFavorite(songId)
-        } else {
-            favoriteDao.addFavorite(FavoriteEntity(songId = songId))
-        }
+        favoriteDao.toggleFavorite(songId)
     }
 }

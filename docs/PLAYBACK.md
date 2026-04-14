@@ -30,6 +30,10 @@ Central API for all playback operations. Singleton injected via Hilt.
 - `seekToFraction(fraction: Float)` — seek by 0.0–1.0 progress
 - `toggleShuffle()` / `toggleRepeatMode()`
 
+### State Resilience
+- **`onEvents` safety net**: After every batch of player events, verifies `currentSong` and `isPlaying` match the actual player state. Catches edge cases during Bluetooth disconnect, audio-source changes, or service reconnection where individual callbacks may be missed.
+- **Service reconnection sync**: When the MediaController reconnects to a fresh service (`mediaItemCount == 0`), the queue is reloaded and `_playbackState` is explicitly synced to prevent the current song from disappearing from the UI.
+
 ### Persistence
 - Saves/restores last queue + position to DataStore
 - `CONTINUE_TO_NEXT_FOLDER` DataStore key for end-of-queue folder continuation

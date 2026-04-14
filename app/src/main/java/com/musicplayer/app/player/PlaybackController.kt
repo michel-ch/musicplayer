@@ -261,6 +261,13 @@ class PlaybackController @Inject constructor(
                             setMediaItems(queue.map { it.toMediaItem() }, idx, 0)
                             prepare()
                             if (pendingPlay) { play(); pendingPlay = false }
+                            // Ensure UI state is preserved after reloading into a fresh service
+                            val song = queue.getOrNull(idx)
+                            if (song != null && _playbackState.value.currentSong?.id != song.id) {
+                                _playbackState.update {
+                                    it.copy(currentSong = song, isPlaying = isPlaying)
+                                }
+                            }
                         } else {
                             // Service still running with items — sync state so MiniPlayer
                             // and play/pause reflect reality after a reconnect.
@@ -323,6 +330,34 @@ class PlaybackController @Inject constructor(
                 }
                 if (playbackState == Player.STATE_ENDED) {
                     handlePlaybackEnded()
+                }
+            }
+
+            override fun onEvents(player: Player, events: Player.Events) {
+                // Safety net: after any batch of player events, ensure our state
+                // matches the actual player state.  This catches edge cases where
+                // individual callbacks are missed during Bluetooth disconnect /
+                // audio-source changes / service reconnection.
+                val controller = mediaController ?: return
+                val queue = queueManager.queue.value
+                if (queue.isEmpty()) return
+
+                val idx = controller.currentMediaItemIndex
+                if (idx !in queue.indices) return
+
+                val song = queue[idx]
+                val state = _playbackState.value
+                if (state.currentSong?.id != song.id || state.isPlaying != controller.isPlaying) {
+                    if (idx != queueManager.currentIndex.value) {
+                        queueManager.skipToIndex(idx)
+                    }
+                    _playbackState.update {
+                        it.copy(
+                            currentSong = song,
+                            isPlaying = controller.isPlaying,
+                            duration = controller.duration.coerceAtLeast(0)
+                        )
+                    }
                 }
             }
         })

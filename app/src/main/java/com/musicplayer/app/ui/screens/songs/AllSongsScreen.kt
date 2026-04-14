@@ -100,13 +100,7 @@ fun AllSongsScreen(
         // Wait for the list layout to be measured
         snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
 
-        // Calculate how many items fill half the viewport, then scroll so the
-        // current song lands in the middle of the visible area
-        val viewportHeight = listState.layoutInfo.viewportSize.height
-        val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
-        val halfVisible = if (itemHeight > 0) viewportHeight / itemHeight / 2 else 4
-
-        listState.animateScrollToItem(maxOf(0, itemIndex - halfVisible))
+        listState.scrollToItem(itemIndex)
     }
 
     if (selectedSong != null) {

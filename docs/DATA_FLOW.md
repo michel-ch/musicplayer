@@ -50,6 +50,11 @@ MediaStore (Android system)      Room Database           DataStore (Preferences)
 3. PlaybackController → MediaController → sends MediaItems to ExoPlayer (in PlaybackService)
 4. ExoPlayer plays → position updates → PlaybackController polls and updates `playbackState` StateFlow
 5. UI collects `playbackState` and recomposes (MiniPlayer, NowPlayingScreen)
+6. `onEvents` listener verifies state consistency after every event batch (resilience for BT disconnect / audio source changes)
+
+## Song List Auto-Scroll
+
+When entering a song list screen that contains the currently playing (or paused) song, the list auto-scrolls so the current song appears at the top of the visible area. Implemented via `LaunchedEffect` + `rememberLazyListState` on: AllSongsScreen, FolderBrowserScreen, AlbumDetailScreen, ArtistDetailScreen, GenreDetailScreen, YearDetailScreen, ComposerDetailScreen, AlbumArtistDetailScreen, PlaylistScreen. QueueScreen uses its own scroll logic (centers ~4 items above current).
 
 ## DI Wiring
 

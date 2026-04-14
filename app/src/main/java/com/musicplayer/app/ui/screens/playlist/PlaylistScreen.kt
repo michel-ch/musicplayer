@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -28,11 +29,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -52,6 +56,23 @@ fun PlaylistScreen(
     val playlistSongs by viewModel.playlistSongs.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val playbackState by viewModel.playbackController.playbackState.collectAsState()
+    val songListState = rememberLazyListState()
+
+    // Auto-scroll to current playing song when viewing playlist songs
+    LaunchedEffect(selectedPlaylistId) {
+        if (selectedPlaylistId == null) return@LaunchedEffect
+        val currentId = playbackState.currentSong?.id ?: return@LaunchedEffect
+
+        val songsList = if (playlistSongs.isEmpty()) {
+            snapshotFlow { playlistSongs }.first { it.isNotEmpty() }
+        } else playlistSongs
+
+        val songIndex = songsList.indexOfFirst { it.id == currentId }
+        if (songIndex < 0) return@LaunchedEffect
+
+        snapshotFlow { songListState.layoutInfo.totalItemsCount }.first { it > 0 }
+        songListState.scrollToItem(songIndex)
+    }
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var showListOptions by remember { mutableStateOf(false) }
@@ -159,6 +180,7 @@ fun PlaylistScreen(
         } else {
             // Songs in playlist
             LazyColumn(
+                state = songListState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)

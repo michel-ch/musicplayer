@@ -27,6 +27,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -92,6 +95,25 @@ fun FolderBrowserScreen(
     val scope = rememberCoroutineScope()
 
     val listState = rememberLazyListState()
+
+    // Auto-scroll to current playing song when entering folder song list
+    LaunchedEffect(selectedFolder) {
+        if (selectedFolder == null) return@LaunchedEffect
+        val currentId = playbackState.currentSong?.id ?: return@LaunchedEffect
+
+        val songsList = if (folderSongs.isEmpty()) {
+            snapshotFlow { folderSongs }.first { it.isNotEmpty() }
+        } else folderSongs
+
+        val songIndex = songsList.indexOfFirst { it.id == currentId }
+        if (songIndex < 0) return@LaunchedEffect
+
+        // +1 for the folder header item
+        val itemIndex = songIndex + 1
+
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
+        listState.scrollToItem(itemIndex)
+    }
 
     // Android system back button: go back to folder list when viewing songs
     BackHandler(enabled = selectedFolder != null) {

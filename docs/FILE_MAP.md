@@ -71,7 +71,7 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 
 | File | Purpose |
 |------|---------|
-| `PlaybackController.kt` | @Singleton. Controls ExoPlayer via Media3 MediaController. Exposes `playbackState: StateFlow<PlaybackState>`. Methods: `playSongs()`, `playAtIndex()`, `togglePlayPause()`, `skipToNext()`, `skipToPrevious()`, `seekToFraction()`, `toggleShuffle()`, `toggleRepeatMode()`. Persists/restores queue to DataStore. Injects MusicRepository for folder-continuation. |
+| `PlaybackController.kt` | @Singleton. Controls ExoPlayer via Media3 MediaController. Exposes `playbackState: StateFlow<PlaybackState>`. Methods: `playSongs()`, `playAtIndex()`, `togglePlayPause()`, `skipToNext()`, `skipToPrevious()`, `seekToFraction()`, `toggleShuffle()`, `toggleRepeatMode()`. Persists/restores queue to DataStore. Injects MusicRepository for folder-continuation. `onEvents` listener syncs state after every event batch for BT disconnect resilience. |
 | `QueueManager.kt` | @Singleton. Manages queue + currentIndex. Maintains both shuffled and original order. Methods: `setQueue()`, `skipToIndex()`, `skipToNext()`, `skipToPrevious()`, `toggleShuffle()`, `removeFromQueue()`, `clear()` |
 | `PlaybackState.kt` | Data class: currentSong, isPlaying, currentPosition, duration, shuffleEnabled, repeatMode, progress |
 | `RepeatMode.kt` | Enum: OFF, ALL, ONE with `next()` cycle |

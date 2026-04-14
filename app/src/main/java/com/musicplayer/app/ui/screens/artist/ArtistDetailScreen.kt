@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -23,12 +24,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -39,6 +42,7 @@ import com.musicplayer.app.ui.components.SongOptionsSheet
 
 import com.musicplayer.app.ui.components.SongItem
 import com.musicplayer.app.ui.screens.playlist.PlaylistViewModel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,8 +63,27 @@ fun ArtistDetailScreen(
     var selectedSong by remember { mutableStateOf<Song?>(null) }
     val playlists by playlistViewModel.playlists.collectAsState()
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
     viewModel.loadArtist(artistName)
+
+    // Auto-scroll to current playing song when entering this screen
+    LaunchedEffect(Unit) {
+        val currentId = playbackState.currentSong?.id ?: return@LaunchedEffect
+
+        val songsList = if (songs.isEmpty()) {
+            snapshotFlow { songs }.first { it.isNotEmpty() }
+        } else songs
+
+        val songIndex = songsList.indexOfFirst { it.id == currentId }
+        if (songIndex < 0) return@LaunchedEffect
+
+        // +1 for the header item
+        val itemIndex = songIndex + 1
+
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
+        listState.scrollToItem(itemIndex)
+    }
 
     if (selectedSong != null) {
         SongOptionsSheet(
@@ -117,6 +140,7 @@ fun ArtistDetailScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)

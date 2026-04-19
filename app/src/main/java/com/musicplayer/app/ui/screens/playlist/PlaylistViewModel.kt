@@ -13,6 +13,7 @@ import com.musicplayer.app.domain.repository.MusicRepository
 import com.musicplayer.app.domain.repository.PlaylistRepository
 import com.musicplayer.app.domain.usecase.SortSongsUseCase
 import com.musicplayer.app.player.PlaybackController
+import com.musicplayer.app.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -128,6 +129,6 @@ class PlaylistViewModel @Inject constructor(
 
     fun playSong(song: Song, songs: List<Song>) {
         val index = songs.indexOf(song)
-        playbackController.playSongs(songs, index.coerceAtLeast(0))
+        playbackController.playSongs(songs, index.coerceAtLeast(0), Screen.Playlists.route)
     }
 }

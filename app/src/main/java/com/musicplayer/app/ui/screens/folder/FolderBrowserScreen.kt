@@ -96,6 +96,16 @@ fun FolderBrowserScreen(
 
     val listState = rememberLazyListState()
 
+    // Auto-select the current song's folder when navigated to without a selection
+    LaunchedEffect(Unit) {
+        if (selectedFolder != null) return@LaunchedEffect
+        val currentSong = playbackState.currentSong ?: return@LaunchedEffect
+        val folderPath = currentSong.folderPath
+        if (folderPath.isNotEmpty()) {
+            viewModel.selectFolder(folderPath)
+        }
+    }
+
     // Auto-scroll to current playing song when entering folder song list
     LaunchedEffect(selectedFolder) {
         if (selectedFolder == null) return@LaunchedEffect

@@ -51,6 +51,18 @@ MediaStore (Android system)      Room Database           DataStore (Preferences)
 4. ExoPlayer plays → position updates → PlaybackController polls and updates `playbackState` StateFlow
 5. UI collects `playbackState` and recomposes (MiniPlayer, NowPlayingScreen)
 6. `onEvents` listener verifies state consistency after every event batch (resilience for BT disconnect / audio source changes)
+7. On every track change, PlaybackController writes a synchronous snapshot (queue JSON, index, source route) to the `playback_snapshot` SharedPreferences file, so `_playbackState` can be rehydrated in `init` before the UI subscribes on a subsequent process start.
+
+## Delete Flow
+
+1. User long-presses a song → `SongOptionsSheet` → delete tapped
+2. ViewModel calls `deletionHandler.delete(song)` (every list ViewModel exposes this)
+3. `SongDeletionHandler` calls `musicRepository.deleteSong()`:
+   - **Android ≤ Q**: direct `contentResolver.delete`. Resolves non-`content://` URIs via MediaStore before deleting.
+   - **Android R+**: returns `DeleteResult.RequiresConfirmation(intentSender, song)`.
+4. For RequiresConfirmation, the handler emits `confirmationRequest: SharedFlow<IntentSenderRequest>`; the `StartIntentSenderForResult` launcher in `MusicPlayerRoot` handles the system dialog.
+5. Launcher result → `deletionHandler.onConfirmationResult(granted)` → `finalizeDelete()` updates cache (R+) or retries the delete (Q).
+6. On success the handler calls `playbackController.onSongDeleted(songId)` (evicts from queue) and emits a `feedback: SharedFlow<String>` message picked up by the root `SnackbarHost`.
 
 ## Song List Auto-Scroll
 

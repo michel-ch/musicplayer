@@ -1,8 +1,5 @@
 package com.musicplayer.app.ui.screens.songs
 
-import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,20 +64,6 @@ fun AllSongsScreen(
 
     // LazyList state for auto-scroll to current song
     val listState = rememberLazyListState()
-
-    // Launch system delete-confirmation dialog (Android 10+)
-    val deleteLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult()
-    ) { result ->
-        viewModel.onDeleteConfirmationResult(result.resultCode == Activity.RESULT_OK)
-    }
-
-    // Collect deletion requests that need system confirmation
-    LaunchedEffect(Unit) {
-        viewModel.deleteConfirmationRequest.collect { request ->
-            deleteLauncher.launch(request)
-        }
-    }
 
     // Auto-scroll to current playing song when entering this screen
     LaunchedEffect(Unit) {

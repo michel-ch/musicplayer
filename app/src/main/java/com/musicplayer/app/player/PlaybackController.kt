@@ -2,6 +2,7 @@ package com.musicplayer.app.player
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
 import androidx.datastore.core.DataStore
@@ -46,6 +47,8 @@ class PlaybackController @Inject constructor(
 ) {
     private var mediaController: MediaController? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val snapshotPrefs: SharedPreferences =
+        context.getSharedPreferences("playback_snapshot", Context.MODE_PRIVATE)
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
@@ -58,16 +61,61 @@ class PlaybackController @Inject constructor(
     @Volatile
     private var pendingPlay: Boolean = false
 
+    private val _sourceRoute = MutableStateFlow<String?>(null)
+    val sourceRoute: StateFlow<String?> = _sourceRoute.asStateFlow()
+
     companion object {
+        private const val TAG = "PlaybackController"
         private val LAST_QUEUE_JSON = stringPreferencesKey("last_queue_json")
         private val LAST_QUEUE_INDEX = intPreferencesKey("last_queue_index")
+        private val LAST_SOURCE_ROUTE = stringPreferencesKey("last_source_route")
         val CONTINUE_TO_NEXT_FOLDER = booleanPreferencesKey("continue_to_next_folder")
+        private const val SNAPSHOT_QUEUE_JSON = "queue_json"
+        private const val SNAPSHOT_QUEUE_INDEX = "queue_index"
+        private const val SNAPSHOT_SOURCE_ROUTE = "source_route"
     }
 
     init {
+        // Populate state synchronously from SharedPreferences snapshot so the
+        // MiniPlayer is visible immediately after a process restart (e.g. the
+        // app was killed while backgrounded after audio focus / BT loss).
+        restoreSnapshotSync()
         connectToService()
         startPositionUpdater()
         restoreLastSong()
+    }
+
+    private fun restoreSnapshotSync() {
+        try {
+            val queueJson = snapshotPrefs.getString(SNAPSHOT_QUEUE_JSON, null) ?: return
+            val savedIndex = snapshotPrefs.getInt(SNAPSHOT_QUEUE_INDEX, 0)
+            val queueSongs = deserializeQueue(queueJson)
+            if (queueSongs.isEmpty()) return
+            val startIndex = savedIndex.coerceIn(0, queueSongs.size - 1)
+            val song = queueSongs[startIndex]
+            _playbackState.value = PlaybackState(
+                currentSong = song,
+                duration = song.duration
+            )
+            queueManager.setQueue(queueSongs, startIndex)
+            _sourceRoute.value = snapshotPrefs.getString(SNAPSHOT_SOURCE_ROUTE, null)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to restore snapshot", e)
+        }
+    }
+
+    private fun writeSnapshot(queue: List<Song>, currentIndex: Int, route: String?) {
+        snapshotPrefs.edit().apply {
+            if (queue.isNotEmpty()) {
+                putString(SNAPSHOT_QUEUE_JSON, serializeQueue(queue))
+                putInt(SNAPSHOT_QUEUE_INDEX, currentIndex)
+            } else {
+                remove(SNAPSHOT_QUEUE_JSON)
+                remove(SNAPSHOT_QUEUE_INDEX)
+            }
+            if (route != null) putString(SNAPSHOT_SOURCE_ROUTE, route)
+            else remove(SNAPSHOT_SOURCE_ROUTE)
+        }.apply()
     }
 
     private fun restoreLastSong() {
@@ -75,6 +123,7 @@ class PlaybackController @Inject constructor(
             val prefs = dataStore.data.first()
             val queueJson = prefs[LAST_QUEUE_JSON] ?: return@launch
             val savedIndex = prefs[LAST_QUEUE_INDEX] ?: 0
+            _sourceRoute.value = prefs[LAST_SOURCE_ROUTE]
 
             val queueSongs = deserializeQueue(queueJson)
             if (queueSongs.isEmpty()) return@launch
@@ -133,10 +182,13 @@ class PlaybackController @Inject constructor(
         // where QueueManager.clear() empties the queue before the IO coroutine reads it.
         val queue = queueManager.queue.value
         val currentIndex = queueManager.currentIndex.value
+        val route = _sourceRoute.value
+        writeSnapshot(queue, currentIndex, route)
         scope.launch(Dispatchers.IO) {
             dataStore.edit { prefs ->
                 prefs[LAST_QUEUE_JSON] = serializeQueue(queue)
                 prefs[LAST_QUEUE_INDEX] = currentIndex
+                if (route != null) prefs[LAST_SOURCE_ROUTE] = route else prefs.remove(LAST_SOURCE_ROUTE)
             }
         }
     }
@@ -306,6 +358,9 @@ class PlaybackController @Inject constructor(
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 // Ignore transitions caused by playlist changes (e.g. artwork updates via replaceMediaItem)
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) return
+                // Service teardown / BT disconnect / focus loss can fire a null transition —
+                // keep the existing currentSong so the MiniPlayer stays visible.
+                if (mediaItem == null) return
 
                 val index = mediaController?.currentMediaItemIndex ?: return
                 queueManager.skipToIndex(index)
@@ -439,7 +494,8 @@ class PlaybackController @Inject constructor(
         }
     }
 
-    fun playSongs(songs: List<Song>, startIndex: Int = 0) {
+    fun playSongs(songs: List<Song>, startIndex: Int = 0, sourceRoute: String? = null) {
+        if (sourceRoute != null) _sourceRoute.value = sourceRoute
         queueManager.setQueue(songs, startIndex)
         val mediaItems = songs.map { it.toMediaItem() }
         mediaController?.apply {
@@ -576,6 +632,45 @@ class PlaybackController @Inject constructor(
     fun addToQueue(song: Song) {
         queueManager.addToQueue(song)
         mediaController?.addMediaItem(song.toMediaItem())
+    }
+
+    fun onSongDeleted(songId: Long) {
+        val queue = queueManager.queue.value
+        val index = queue.indexOfFirst { it.id == songId }
+        if (index < 0) return
+
+        val wasCurrent = index == queueManager.currentIndex.value
+        val wasLast = queue.size == 1
+
+        queueManager.removeFromQueue(index)
+        mediaController?.removeMediaItem(index)
+
+        if (wasLast) {
+            mediaController?.stop()
+            mediaController?.clearMediaItems()
+            _playbackState.update {
+                it.copy(currentSong = null, isPlaying = false, currentPosition = 0, duration = 0)
+            }
+            writeSnapshot(emptyList(), -1, null)
+            scope.launch(Dispatchers.IO) {
+                dataStore.edit { prefs ->
+                    prefs.remove(LAST_QUEUE_JSON)
+                    prefs.remove(LAST_QUEUE_INDEX)
+                    prefs.remove(LAST_SOURCE_ROUTE)
+                }
+            }
+            return
+        }
+
+        if (wasCurrent) {
+            val newIndex = queueManager.currentIndex.value.coerceIn(0, queueManager.queue.value.size - 1)
+            val newSong = queueManager.queue.value.getOrNull(newIndex) ?: return
+            mediaController?.seekTo(newIndex, 0)
+            _playbackState.update { it.copy(currentSong = newSong, currentPosition = 0) }
+            saveLastSong(newSong)
+        } else {
+            _playbackState.value.currentSong?.let { saveLastSong(it) }
+        }
     }
 
     private fun Song.toMediaItem(): MediaItem {

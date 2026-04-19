@@ -24,13 +24,13 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 | `Composer.kt` | name, songCount |
 | `Folder.kt` | path, name, songCount |
 | `SortOption.kt` | Enum with 29 sort options (title, artist, album, duration, date, size, track, disc, filename, year, genre, composer, format, shuffle) |
-| `DeleteResult.kt` | Sealed class: Deleted, RequiresConfirmation(IntentSender), Failed(String) |
+| `DeleteResult.kt` | Sealed class: `Deleted`, `RequiresConfirmation(intentSender, song)`, `Failed(message)` |
 
 ### Repository Interfaces (`domain/repository/`)
 
 | File | Key Methods |
 |------|-------------|
-| `MusicRepository.kt` | `getAllSongs()`, `getSongsByFolder/Album/Artist/Genre/Year/Composer/AlbumArtist()`, `getAlbums()`, `getArtists()`, `getFolders()`, `getGenres()`, `getYears()`, `getComposers()`, `getAlbumArtists()`, `getFolderHierarchy()`, `searchSongs/Albums/Artists/Folders/AlbumArtists()`, `getScanFolders()`, `addScanFolder()`, `addScanFolderUri()`, `removeScanFolder()`, `refreshLibrary()`, `deleteSong()`, `removeFromCache()` |
+| `MusicRepository.kt` | `getAllSongs()`, `getSongsByFolder/Album/Artist/Genre/Year/Composer/AlbumArtist()`, `getAlbums()`, `getArtists()`, `getFolders()`, `getGenres()`, `getYears()`, `getComposers()`, `getAlbumArtists()`, `getFolderHierarchy()`, `searchSongs/Albums/Artists/Folders/AlbumArtists()`, `getScanFolders()`, `addScanFolder()`, `addScanFolderUri()`, `removeScanFolder()`, `refreshLibrary()`, `deleteSong()`, `finalizeDelete()`, `removeFromCache()` |
 | `PlaylistRepository.kt` | `getAllPlaylists()`, `getSongIdsForPlaylist()`, `createPlaylist()`, `deletePlaylist()`, `renamePlaylist()`, `addSongToPlaylist()`, `removeSongFromPlaylist()`, `getFavoriteIds()`, `isFavorite()`, `toggleFavorite()` |
 
 ### Use Cases (`domain/usecase/`)
@@ -71,8 +71,9 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 
 | File | Purpose |
 |------|---------|
-| `PlaybackController.kt` | @Singleton. Controls ExoPlayer via Media3 MediaController. Exposes `playbackState: StateFlow<PlaybackState>`. Methods: `playSongs()`, `playAtIndex()`, `togglePlayPause()`, `skipToNext()`, `skipToPrevious()`, `seekToFraction()`, `toggleShuffle()`, `toggleRepeatMode()`. Persists/restores queue to DataStore. Injects MusicRepository for folder-continuation. `onEvents` listener syncs state after every event batch for BT disconnect resilience. |
-| `QueueManager.kt` | @Singleton. Manages queue + currentIndex. Maintains both shuffled and original order. Methods: `setQueue()`, `skipToIndex()`, `skipToNext()`, `skipToPrevious()`, `toggleShuffle()`, `removeFromQueue()`, `clear()` |
+| `PlaybackController.kt` | @Singleton. Controls ExoPlayer via Media3 MediaController. Exposes `playbackState: StateFlow<PlaybackState>`. Methods: `playSongs()`, `playAtIndex()`, `togglePlayPause()`, `skipToNext()`, `skipToPrevious()`, `seekToFraction()`, `toggleShuffle()`, `toggleRepeatMode()`, `onSongDeleted()`. Persists queue to DataStore **and** to a synchronous `playback_snapshot` SharedPreferences cache used to hydrate `_playbackState` in `init` before the UI subscribes — keeps the MiniPlayer visible across process restarts. Injects MusicRepository for folder-continuation. `onEvents` listener syncs state after every event batch for BT disconnect resilience; `onMediaItemTransition(null, …)` is ignored so service teardown cannot clear `currentSong`. |
+| `QueueManager.kt` | @Singleton. Manages queue + currentIndex. Maintains both shuffled and original order. Methods: `setQueue()`, `skipToIndex()`, `skipToNext()`, `skipToPrevious()`, `toggleShuffle()`, `addToQueue()`, `removeFromQueue()`, `clear()` |
+| `SongDeletionHandler.kt` | @Singleton. Single entry point for song deletion: `delete(song)` issues the repository call, on Android R+ surfaces the `IntentSender` confirmation via `confirmationRequest: SharedFlow`, then on result calls `finalizeDelete()`, evicts the song from the queue, and emits user-facing `feedback: SharedFlow<String>` for the Snackbar. |
 | `PlaybackState.kt` | Data class: currentSong, isPlaying, currentPosition, duration, shuffleEnabled, repeatMode, progress |
 | `RepeatMode.kt` | Enum: OFF, ALL, ONE with `next()` cycle |
 | `BluetoothReceiver.kt` | Handles Bluetooth device connect/disconnect events |
@@ -93,8 +94,8 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 
 | File | Purpose |
 |------|---------|
-| `MusicPlayerRoot.kt` | Root composable, sets up NavHost + bottom nav + MiniPlayer |
-| `RootViewModel.kt` | Exposes `playbackController` to root composable |
+| `MusicPlayerRoot.kt` | Root composable. Sets up NavHost, bottom nav, MiniPlayer, the `StartIntentSenderForResult` launcher that drives Android R+ delete confirmation, and the `SnackbarHost` that shows feedback from `SongDeletionHandler`. |
+| `RootViewModel.kt` | Exposes `playbackController` and `deletionHandler` to the root composable |
 
 ### Navigation (`ui/navigation/`)
 

@@ -21,8 +21,8 @@ class FooViewModel @Inject constructor(
 ## ViewModel Reference
 
 ### RootViewModel (`ui/RootViewModel.kt`)
-- **Injects**: PlaybackController
-- **Exposes**: `playbackController` (for MiniPlayer in root)
+- **Injects**: PlaybackController, SongDeletionHandler
+- **Exposes**: `playbackController` (for MiniPlayer), `deletionHandler` (drives the root Snackbar + delete-confirmation launcher)
 
 ### LibraryViewModel (`ui/screens/library/`)
 - **Injects**: MusicRepository, PlaybackController, DataStore, SortSongsUseCase
@@ -31,9 +31,9 @@ class FooViewModel @Inject constructor(
 - **Persists**: sort preference to DataStore
 
 ### AllSongsViewModel (`ui/screens/songs/`)
-- **Injects**: MusicRepository, PlaybackController, PlaylistRepository, DataStore, SortSongsUseCase
-- **State**: `sortOption`, `songs`, `deleteConfirmationRequest`
-- **Methods**: `setSortOption()`, `playSong()`, `deleteSong()`
+- **Injects**: MusicRepository, PlaybackController, PlaylistRepository, DataStore, SortSongsUseCase, SongDeletionHandler
+- **State**: `sortOption`, `songs`
+- **Methods**: `setSortOption()`, `playSong()`, `deleteSong()` (one-liner that delegates to `SongDeletionHandler`)
 - **Persists**: sort preference to DataStore
 
 ### NowPlayingViewModel (`ui/screens/nowplaying/`)
@@ -69,9 +69,9 @@ class FooViewModel @Inject constructor(
 ### Detail ViewModels (album, artist, genre, year, composer, albumartist, folder)
 
 All follow the same pattern:
-- **Injects**: MusicRepository, PlaybackController, PlaylistRepository (some), DataStore (some), SortSongsUseCase (some)
+- **Injects**: MusicRepository, PlaybackController, PlaylistRepository (some), DataStore (some), SortSongsUseCase (some), SongDeletionHandler
 - **State**: entity identifier + `songs: StateFlow<List<Song>>` + optional `sortOption`
-- **Methods**: `load{Entity}()`, `playSong()`, optional `setSortOption()`
+- **Methods**: `load{Entity}()`, `playSong()`, `deleteSong()` (delegates to `SongDeletionHandler`), optional `setSortOption()`
 - Located in their respective `ui/screens/{entity}/` directories
 
 | ViewModel | File | Loads By |

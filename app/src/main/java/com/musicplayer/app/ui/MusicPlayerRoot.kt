@@ -1,6 +1,9 @@
 package com.musicplayer.app.ui
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -27,6 +30,8 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -77,6 +82,20 @@ fun MusicPlayerRoot(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val playbackState by viewModel.playbackController.playbackState.collectAsState()
+    val sourceRoute by viewModel.playbackController.sourceRoute.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val deleteLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        viewModel.deletionHandler.onConfirmationResult(result.resultCode == Activity.RESULT_OK)
+    }
+    LaunchedEffect(Unit) {
+        viewModel.deletionHandler.confirmationRequest.collect { deleteLauncher.launch(it) }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.deletionHandler.feedback.collect { snackbarHostState.showSnackbar(it) }
+    }
 
     // NowPlaying overlay state
     var showNowPlaying by remember { mutableStateOf(false) }
@@ -84,6 +103,21 @@ fun MusicPlayerRoot(
     val coroutineScope = rememberCoroutineScope()
     val screenHeightPx = with(LocalDensity.current) {
         LocalConfiguration.current.screenHeightDp.dp.toPx()
+    }
+
+    // On app launch, navigate to the source screen of the last played song
+    var hasNavigatedToSource by remember { mutableStateOf(false) }
+    LaunchedEffect(sourceRoute, playbackState.currentSong) {
+        if (!hasNavigatedToSource && sourceRoute != null && playbackState.currentSong != null) {
+            hasNavigatedToSource = true
+            navController.navigate(sourceRoute!!) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
     }
 
     // Handle notification click -> open NowPlaying overlay
@@ -136,6 +170,7 @@ fun MusicPlayerRoot(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
                 val hasSong = playbackState.currentSong != null
 
@@ -214,9 +249,8 @@ fun MusicPlayerRoot(
                     coroutineScope.launch {
                         nowPlayingOffsetY.animateTo(screenHeightPx, tween(300))
                         showNowPlaying = false
-                        // Navigate to Queue tab so the user sees their song list
-                        // with the current track centered.
-                        navController.navigate(Screen.Queue.route) {
+                        val target = sourceRoute ?: Screen.Queue.route
+                        navController.navigate(target) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 saveState = true
                             }

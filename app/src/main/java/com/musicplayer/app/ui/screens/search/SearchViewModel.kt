@@ -11,6 +11,7 @@ import com.musicplayer.app.domain.model.Folder
 import com.musicplayer.app.domain.model.Song
 import com.musicplayer.app.domain.repository.MusicRepository
 import com.musicplayer.app.player.PlaybackController
+import com.musicplayer.app.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -106,18 +107,18 @@ class SearchViewModel @Inject constructor(
 
     fun playSong(song: Song, songs: List<Song>) {
         val index = songs.indexOf(song)
-        playbackController.playSongs(songs, index.coerceAtLeast(0))
+        playbackController.playSongs(songs, index.coerceAtLeast(0), Screen.Search.route)
     }
 
     fun shuffleAndPlay(songs: List<Song>) {
         if (songs.isNotEmpty()) {
-            playbackController.playSongs(songs.shuffled())
+            playbackController.playSongs(songs.shuffled(), sourceRoute = Screen.Search.route)
         }
     }
 
     fun playAll(songs: List<Song>) {
         if (songs.isNotEmpty()) {
-            playbackController.playSongs(songs)
+            playbackController.playSongs(songs, sourceRoute = Screen.Search.route)
         }
     }
 }

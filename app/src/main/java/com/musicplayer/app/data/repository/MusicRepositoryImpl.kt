@@ -1,8 +1,11 @@
 package com.musicplayer.app.data.repository
 
+import android.content.ContentUris
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -34,6 +37,7 @@ class MusicRepositoryImpl @Inject constructor(
 ) : MusicRepository {
 
     companion object {
+        private const val TAG = "MusicRepository"
         private val SCAN_FOLDERS_KEY = stringSetPreferencesKey("scan_folders")
         private val SCAN_FOLDER_URIS_KEY = stringSetPreferencesKey("scan_folder_uris")
     }
@@ -248,49 +252,118 @@ class MusicRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteSong(song: Song): DeleteResult {
-        return try {
-            if (song.uri.scheme == "content") {
-                try {
-                    val rows = context.contentResolver.delete(song.uri, null, null)
-                    if (rows > 0) {
-                        songsCache.update { songs -> songs.filter { it.id != song.id } }
-                        return DeleteResult.Deleted
-                    }
-                } catch (e: SecurityException) {
-                    // Android 10+: need user confirmation to delete files not owned by this app
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        // Android 11+: use MediaStore.createDeleteRequest for system dialog
-                        val pendingIntent = MediaStore.createDeleteRequest(
-                            context.contentResolver,
-                            listOf(song.uri)
-                        )
-                        return DeleteResult.RequiresConfirmation(pendingIntent.intentSender, song)
-                    } else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
-                        // Android 10: RecoverableSecurityException path
-                        val rse = e as? android.app.RecoverableSecurityException
-                        if (rse != null) {
-                            return DeleteResult.RequiresConfirmation(
-                                rse.userAction.actionIntent.intentSender, song
-                            )
-                        }
-                    }
-                }
-            }
-            // Fallback: try deleting the file directly (works on Android 9 and below)
-            if (song.filePath.isNotEmpty()) {
-                val file = java.io.File(song.filePath)
-                if (file.exists() && file.delete()) {
-                    songsCache.update { songs -> songs.filter { it.id != song.id } }
+        val contentUri = resolveContentUri(song)
+
+        if (contentUri != null) {
+            try {
+                val rows = context.contentResolver.delete(contentUri, null, null)
+                if (rows > 0) {
+                    songsCache.update { it.filter { s -> s.id != song.id } }
                     return DeleteResult.Deleted
                 }
+                Log.w(TAG, "delete($contentUri) returned 0 rows")
+            } catch (e: SecurityException) {
+                return requestDeleteConfirmation(song, contentUri, e)
+                    ?: DeleteResult.Failed.also { Log.w(TAG, "SecurityException with no recovery path", e) }
+            } catch (e: Exception) {
+                Log.w(TAG, "contentResolver.delete threw", e)
             }
-            DeleteResult.Failed
-        } catch (_: Exception) {
-            DeleteResult.Failed
         }
+
+        // Fallback: direct file delete (Android 9 and below, or pre-Q cases)
+        if (song.filePath.isNotEmpty() && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            try {
+                val file = java.io.File(song.filePath)
+                if (file.exists() && file.delete()) {
+                    songsCache.update { it.filter { s -> s.id != song.id } }
+                    return DeleteResult.Deleted
+                }
+                Log.w(TAG, "File.delete failed for ${song.filePath}")
+            } catch (e: Exception) {
+                Log.w(TAG, "File.delete threw for ${song.filePath}", e)
+            }
+        }
+
+        return DeleteResult.Failed
+    }
+
+    override suspend fun finalizeDelete(song: Song): DeleteResult {
+        // R+: createDeleteRequest already performed the delete on user confirmation.
+        // Q: the RecoverableSecurityException only granted permission — retry the delete now.
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+            val contentUri = resolveContentUri(song)
+            if (contentUri == null) {
+                Log.w(TAG, "finalizeDelete: could not resolve content URI for ${song.filePath}")
+                return DeleteResult.Failed
+            }
+            return try {
+                val rows = context.contentResolver.delete(contentUri, null, null)
+                if (rows > 0) {
+                    songsCache.update { it.filter { s -> s.id != song.id } }
+                    DeleteResult.Deleted
+                } else {
+                    Log.w(TAG, "finalizeDelete: delete returned 0 rows on Q")
+                    DeleteResult.Failed
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "finalizeDelete: delete retry threw on Q", e)
+                DeleteResult.Failed
+            }
+        }
+
+        songsCache.update { it.filter { s -> s.id != song.id } }
+        return DeleteResult.Deleted
     }
 
     override suspend fun removeFromCache(song: Song) {
         songsCache.update { songs -> songs.filter { it.id != song.id } }
     }
+
+    private fun requestDeleteConfirmation(
+        song: Song,
+        contentUri: Uri,
+        e: SecurityException
+    ): DeleteResult? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val pendingIntent = MediaStore.createDeleteRequest(
+                context.contentResolver,
+                listOf(contentUri)
+            )
+            return DeleteResult.RequiresConfirmation(pendingIntent.intentSender, song)
+        }
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+            val rse = e as? android.app.RecoverableSecurityException
+            if (rse != null) {
+                return DeleteResult.RequiresConfirmation(
+                    rse.userAction.actionIntent.intentSender, song
+                )
+            }
+        }
+        return null
+    }
+
+    private fun resolveContentUri(song: Song): Uri? {
+        if (song.uri.scheme == "content") return song.uri
+        if (song.filePath.isBlank()) return null
+        return try {
+            context.contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Audio.Media._ID),
+                "${MediaStore.Audio.Media.DATA} = ?",
+                arrayOf(song.filePath),
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    ContentUris.withAppendedId(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                        cursor.getLong(0)
+                    )
+                } else null
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "resolveContentUri query failed for ${song.filePath}", e)
+            null
+        }
+    }
+
 }

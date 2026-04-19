@@ -12,13 +12,15 @@ import com.musicplayer.app.domain.model.SortOption
 import com.musicplayer.app.domain.repository.MusicRepository
 import com.musicplayer.app.domain.usecase.SortSongsUseCase
 import com.musicplayer.app.player.PlaybackController
+import com.musicplayer.app.player.SongDeletionHandler
+import com.musicplayer.app.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -29,10 +31,11 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class FolderViewModel @Inject constructor(
-    private val musicRepository: MusicRepository,
+    musicRepository: MusicRepository,
     private val sortSongsUseCase: SortSongsUseCase,
     val playbackController: PlaybackController,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val deletionHandler: SongDeletionHandler,
 ) : ViewModel() {
 
     val folders: StateFlow<List<Folder>> = musicRepository.getFolders()
@@ -84,24 +87,22 @@ class FolderViewModel @Inject constructor(
 
     fun playSong(song: Song, songs: List<Song>) {
         val index = songs.indexOf(song)
-        playbackController.playSongs(songs, index.coerceAtLeast(0))
+        playbackController.playSongs(songs, index.coerceAtLeast(0), Screen.Folders.route)
     }
 
     fun shuffleAndPlay(songs: List<Song>) {
         if (songs.isNotEmpty()) {
-            playbackController.playSongs(songs.shuffled())
+            playbackController.playSongs(songs.shuffled(), sourceRoute = Screen.Folders.route)
         }
     }
 
     fun playAll(songs: List<Song>) {
         if (songs.isNotEmpty()) {
-            playbackController.playSongs(songs)
+            playbackController.playSongs(songs, sourceRoute = Screen.Folders.route)
         }
     }
 
-    fun deleteSong(song: Song) {
-        viewModelScope.launch { musicRepository.deleteSong(song) }
-    }
+    fun deleteSong(song: Song) = deletionHandler.delete(song)
 
     fun formatTotalDuration(songs: List<Song>): String {
         val totalMs = songs.sumOf { it.duration }

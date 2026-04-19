@@ -5,14 +5,14 @@ A modern Android music player for local audio files, built with Kotlin and Jetpa
 ## Screenshots
 
 <p align="center">
-  <img src="docs/libraryPage.jpg" width="200" alt="Library">
-  <img src="docs/songListPage.jpg" width="200" alt="Song List">
-  <img src="docs/currentlyPlayedSongPage.jpg" width="200" alt="Now Playing">
+  <img src="images/libraryPage.jpg" width="200" alt="Library">
+  <img src="images/songListPage.jpg" width="200" alt="Song List">
+  <img src="images/currentlyPlayedSongPage.jpg" width="200" alt="Now Playing">
 </p>
 <p align="center">
-  <img src="docs/equalizerPage.jpg" width="200" alt="Equalizer">
-  <img src="docs/searchPage.jpg" width="200" alt="Search">
-  <img src="docs/songQueuePage.jpg" width="200" alt="Queue">
+  <img src="images/equalizerPage.jpg" width="200" alt="Equalizer">
+  <img src="images/searchPage.jpg" width="200" alt="Search">
+  <img src="images/songQueuePage.jpg" width="200" alt="Queue">
 </p>
 
 ## Features
@@ -26,8 +26,9 @@ A modern Android music player for local audio files, built with Kotlin and Jetpa
 - **Playlists & Favorites** -- create playlists and mark favorite tracks
 - **Notification controls** -- media controls with album art in the notification shade
 - **Bluetooth / headset support** -- auto-resume on Bluetooth or headset connection
-- **Persistent queue** -- automatically restores your queue and position on app restart
+- **Persistent queue** -- automatically restores your queue and position on app restart; MiniPlayer stays visible across audio-focus changes, BT disconnect, and process restarts
 - **Folder continuation** -- optionally continue playback into the next folder when a queue ends
+- **Safe delete** -- long-press → delete with Android R+ system confirmation, queue auto-eviction, and Snackbar feedback
 
 ## Tech Stack
 
@@ -57,7 +58,7 @@ app/src/main/java/com/musicplayer/app/
 ├── domain/          Models, repository interfaces, use cases
 ├── data/            Repository implementations, Room DB, MediaScanner
 ├── di/              Hilt modules (AppModule, DatabaseModule, RepositoryModule)
-├── player/          PlaybackController, QueueManager, PlaybackService, EqualizerManager
+├── player/          PlaybackController, QueueManager, SongDeletionHandler, PlaybackService, EqualizerManager
 └── ui/
     ├── components/  Reusable composables (SongItem, MiniPlayer, SortMenu, etc.)
     ├── navigation/  Screen sealed class + NavGraph
@@ -65,4 +66,4 @@ app/src/main/java/com/musicplayer/app/
     └── theme/       Colors, typography, Material theme
 ```
 
-For full architecture details, see [ARCHITECTURE.md](ARCHITECTURE.md).
+For full architecture details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

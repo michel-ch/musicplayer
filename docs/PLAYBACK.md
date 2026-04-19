@@ -33,11 +33,17 @@ Central API for all playback operations. Singleton injected via Hilt.
 ### State Resilience
 - **`onEvents` safety net**: After every batch of player events, verifies `currentSong` and `isPlaying` match the actual player state. Catches edge cases during Bluetooth disconnect, audio-source changes, or service reconnection where individual callbacks may be missed.
 - **Service reconnection sync**: When the MediaController reconnects to a fresh service (`mediaItemCount == 0`), the queue is reloaded and `_playbackState` is explicitly synced to prevent the current song from disappearing from the UI.
+- **`onMediaItemTransition` null guard**: Service teardown, focus loss, and similar events can fire a transition with `mediaItem == null` under a reason other than `PLAYLIST_CHANGED`; the listener explicitly ignores these so `currentSong` cannot be clobbered.
 
 ### Persistence
-- Saves/restores last queue + position to DataStore
-- `CONTINUE_TO_NEXT_FOLDER` DataStore key for end-of-queue folder continuation
-- Injects `MusicRepository` for folder-continuation feature
+- Saves last queue + index + source route to DataStore (durable) **and** to a `playback_snapshot` SharedPreferences file.
+- `restoreSnapshotSync()` runs first in `init`, synchronously reading the SharedPreferences snapshot and seeding `_playbackState` + `QueueManager` before `connectToService()` starts. This closes the process-restart gap where the MiniPlayer would briefly hide while the async DataStore restore was in flight.
+- `CONTINUE_TO_NEXT_FOLDER` DataStore key for end-of-queue folder continuation.
+- Injects `MusicRepository` for folder-continuation feature.
+
+### Deletion
+- `onSongDeleted(songId)` removes the song from the queue and MediaController, advances to the next song when the deleted entry was current, and clears `_playbackState` + snapshot + DataStore keys when the last song is removed.
+- The UI side of deletion is centralised in **`SongDeletionHandler`** (see file map), not in PlaybackController.
 
 ## QueueManager (`player/QueueManager.kt`)
 

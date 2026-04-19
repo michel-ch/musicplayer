@@ -12,12 +12,14 @@ import com.musicplayer.app.domain.model.Year
 import com.musicplayer.app.domain.repository.MusicRepository
 import com.musicplayer.app.domain.usecase.SortSongsUseCase
 import com.musicplayer.app.player.PlaybackController
+import com.musicplayer.app.player.SongDeletionHandler
+import com.musicplayer.app.ui.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -29,10 +31,11 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class YearViewModel @Inject constructor(
-    private val musicRepository: MusicRepository,
+    musicRepository: MusicRepository,
     private val sortSongsUseCase: SortSongsUseCase,
     val playbackController: PlaybackController,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val deletionHandler: SongDeletionHandler,
 ) : ViewModel() {
 
     val years: StateFlow<List<Year>> = musicRepository.getYears()
@@ -80,16 +83,16 @@ class YearViewModel @Inject constructor(
 
     fun playSong(song: Song, songs: List<Song>) {
         val index = songs.indexOf(song)
-        playbackController.playSongs(songs, index.coerceAtLeast(0))
+        val route = _selectedYear.value?.let { Screen.YearDetail.createRoute(it) }
+        playbackController.playSongs(songs, index.coerceAtLeast(0), route)
     }
 
     fun playAll(songs: List<Song>) {
         if (songs.isNotEmpty()) {
-            playbackController.playSongs(songs)
+            val route = _selectedYear.value?.let { Screen.YearDetail.createRoute(it) }
+            playbackController.playSongs(songs, sourceRoute = route)
         }
     }
 
-    fun deleteSong(song: Song) {
-        viewModelScope.launch { musicRepository.deleteSong(song) }
-    }
+    fun deleteSong(song: Song) = deletionHandler.delete(song)
 }

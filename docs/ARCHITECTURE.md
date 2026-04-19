@@ -41,11 +41,13 @@ Three DAOs: `PlaylistDao`, `FavoriteDao`, `SearchHistoryDao`.
 
 ## Playback System (`player/`)
 
-Three singletons, all Hilt-injected:
+All singletons, Hilt-injected:
 
-- **`PlaybackController`** -- controls ExoPlayer through a Media3 `MediaController`. Exposes `PlaybackState` as `StateFlow` (current song, position, duration, playing/paused, shuffle, repeat mode). Persists queue to DataStore. Handles folder-continuation when a queue ends.
+- **`PlaybackController`** -- controls ExoPlayer through a Media3 `MediaController`. Exposes `PlaybackState` as `StateFlow` (current song, position, duration, playing/paused, shuffle, repeat mode). Persists queue to DataStore and to a fast-read SharedPreferences snapshot so the MiniPlayer is populated synchronously on process restart. Handles folder-continuation when a queue ends; evicts deleted songs from the queue via `onSongDeleted()`.
 
 - **`QueueManager`** -- manages the playback queue and current index. Maintains original order separately for shuffle mode.
+
+- **`SongDeletionHandler`** -- centralises the delete flow (request, Android-R+ confirmation, queue eviction, snackbar feedback) behind a single `delete(song)` call used by every list ViewModel.
 
 - **`PlaybackService`** -- `MediaSessionService` running ExoPlayer in a foreground service. Handles audio focus, notification artwork, and initializes `EqualizerManager`.
 

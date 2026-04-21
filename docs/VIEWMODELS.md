@@ -39,7 +39,7 @@ class FooViewModel @Inject constructor(
 ### NowPlayingViewModel (`ui/screens/nowplaying/`)
 - **Injects**: PlaybackController, QueueManager
 - **State**: delegates to `playbackController.playbackState`
-- **Methods**: `togglePlayPause()`, `skipToNext()`, `skipToPrevious()`, `seekTo()`, `toggleShuffle()`, `toggleRepeatMode()`
+- **Methods**: `togglePlayPause()`, `play()`, `skipToNext()`, `skipToPrevious()`, `skipToPreviousForced()`, `seekTo()`, `toggleShuffle()`, `toggleRepeatMode()`. `play()` is exposed so the progress slider can auto-resume after a seek when paused.
 
 ### QueueViewModel (`ui/screens/queue/`)
 - **Injects**: QueueManager, PlaybackController

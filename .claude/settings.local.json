@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s /b \"C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player\\\\src\")",
+      "Bash(./gradlew assembleDebug:*)",
+      "Bash(gradlew.bat:*)",
+      "Bash(powershell.exe -Command \"Set-Location ''C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player''; .\\\\gradlew.bat assembleDebug 2>&1\")",
+      "Bash(adb push:*)",
+      "Bash(powershell.exe -Command \".\\\\gradlew.bat assembleDebug 2>&1\")",
+      "Bash(dir /s /b \"C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player\\\\*.kt\")",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(./gradlew:*)",
+      "Bash(cmd /c \"gradlew.bat assembleDebug 2>&1\")",
+      "Bash(C:/Users/mtx/Desktop/Player/player/gradlew.bat assembleDebug)",
+      "Bash(adb logcat:*)",
+      "Bash(.\\\\gradlew assembleDebug:*)",
+      "Bash(C:UsersmtxDesktopPlayerplayergradlew.bat assembleDebug)",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player && gradlew.bat assembleDebug\")",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player && gradlew.bat assembleDebug 2>&1\")",
+      "Bash(cmd /c \"cd /d C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player & gradlew assembleDebug\")",
+      "Bash(cmd.exe /c \"cd /d C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player && call gradlew.bat assembleDebug\")",
+      "Bash(powershell -Command:*)",
+      "Bash(cmd.exe /c \"dir /b \\\\\"C:\\\\Users\\\\mtx\\\\Desktop\\\\Player\\\\player\\\\\"\" 2>&1 | grep -i nul)",
+      "Bash(rtk ./gradlew assembleDebug)",
+      "Bash(ls:*)",
+      "Bash(rtk git:*)",
+      "Bash(mkdir -p images)",
+      "Bash(git mv *)",
+      "Bash(rmdir docs/images)"
+    ]
+  }
+}

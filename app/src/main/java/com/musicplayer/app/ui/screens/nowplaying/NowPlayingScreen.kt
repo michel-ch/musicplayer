@@ -91,6 +91,8 @@ fun NowPlayingScreen(
     val currentQueueIndex by viewModel.queueManager.currentIndex.collectAsState()
     val prevSong = queue.getOrNull(currentQueueIndex - 1)
     val nextSong = queue.getOrNull(currentQueueIndex + 1)
+    val canSkipNext = nextSong != null || playbackState.repeatMode == RepeatMode.ALL
+    val canSkipPrev = prevSong != null
 
     // Swipe state
     val offsetY = remember { Animatable(0f) }
@@ -222,7 +224,13 @@ fun NowPlayingScreen(
                                                 offsetY.snapTo(newValue)
                                             }
                                             SwipeDirection.HORIZONTAL -> {
-                                                offsetX.snapTo(offsetX.value + dragAmount.x)
+                                                val newX = offsetX.value + dragAmount.x
+                                                val clamped = when {
+                                                    newX < 0f && !canSkipNext -> 0f
+                                                    newX > 0f && !canSkipPrev -> 0f
+                                                    else -> newX
+                                                }
+                                                offsetX.snapTo(clamped)
                                             }
                                             null -> {}
                                         }

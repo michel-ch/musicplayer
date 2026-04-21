@@ -18,6 +18,8 @@ class NowPlayingViewModel @Inject constructor(
 
     fun togglePlayPause() = playbackController.togglePlayPause()
 
+    fun play() = playbackController.play()
+
     fun skipToNext() = playbackController.skipToNext()
 
     fun skipToPrevious() = playbackController.skipToPrevious()

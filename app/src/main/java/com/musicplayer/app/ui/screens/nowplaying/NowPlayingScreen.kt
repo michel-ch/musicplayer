@@ -346,6 +346,9 @@ fun NowPlayingScreen(
                     },
                     onValueChangeFinished = {
                         viewModel.seekTo(seekPosition)
+                        if (!playbackState.isPlaying) {
+                            viewModel.play()
+                        }
                         isSeeking = false
                     },
                     modifier = Modifier.fillMaxWidth()

@@ -135,7 +135,7 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 |--------|-------|-----------|---------|
 | Library | `library/LibraryScreen.kt`, `LibraryViewModel.kt` | LibraryViewModel | Main hub, category grid, recent songs |
 | All Songs | `songs/AllSongsScreen.kt`, `AllSongsViewModel.kt` | AllSongsViewModel | Full song list with sort + delete |
-| Now Playing | `nowplaying/NowPlayingScreen.kt`, `NowPlayingViewModel.kt` | NowPlayingViewModel | Full-screen player with album art + controls |
+| Now Playing | `nowplaying/NowPlayingScreen.kt`, `NowPlayingViewModel.kt` | NowPlayingViewModel | Full-screen player with album art + controls. Horizontal swipe on the artwork skips tracks; swipe is clamped at queue edges (respects repeat-all for next). Seeking via the progress slider auto-resumes playback when paused. |
 | Queue | `queue/QueueScreen.kt`, `QueueViewModel.kt` | QueueViewModel | Reorderable queue list |
 | Search | `search/SearchScreen.kt`, `SearchViewModel.kt` | SearchViewModel | Search with filter tabs (all/albums/artists/folders) |
 | Equalizer | `equalizer/EqualizerScreen.kt`, `EqualizerViewModel.kt` | EqualizerViewModel | 10-band EQ with presets |

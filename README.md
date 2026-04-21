@@ -19,7 +19,7 @@ A modern Android music player for local audio files, built with Kotlin and Jetpa
 
 - **Library** -- browse by songs, folders, albums, artists, album artists, composers, genres, and years
 - **Folder hierarchy** -- navigate your music folders with a nested folder view
-- **Now Playing** -- album art carousel, seek bar, shuffle and repeat controls
+- **Now Playing** -- album art carousel, seek bar, shuffle and repeat controls. Horizontal swipe skips tracks but is blocked at queue edges (unless repeat-all is on); seeking while paused auto-resumes playback
 - **Equalizer** -- 5-band EQ with bass boost, presets, and per-band sliders
 - **Queue** -- view and manage your playback queue with drag-to-reorder
 - **Search** -- search across all categories with search history

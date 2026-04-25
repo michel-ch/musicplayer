@@ -8,13 +8,15 @@ import androidx.room.RoomDatabase
         PlaylistEntity::class,
         PlaylistSongEntity::class,
         FavoriteEntity::class,
-        SearchHistoryEntity::class
+        SearchHistoryEntity::class,
+        CachedSongEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class MusicDatabase : RoomDatabase() {
     abstract fun playlistDao(): PlaylistDao
     abstract fun favoriteDao(): FavoriteDao
     abstract fun searchHistoryDao(): SearchHistoryDao
+    abstract fun cachedSongDao(): CachedSongDao
 }

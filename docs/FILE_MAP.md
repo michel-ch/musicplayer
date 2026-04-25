@@ -6,7 +6,7 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 
 | File | Purpose |
 |------|---------|
-| `MainActivity.kt` | Activity entry point, permission handling, Hilt setup |
+| `MainActivity.kt` | Activity entry point, permission handling, Hilt setup. Observes the `keep_screen_on` DataStore flag while STARTED and toggles `FLAG_KEEP_SCREEN_ON` on the window — flag is released when the activity is backgrounded so it never blocks system standby. |
 | `MusicPlayerApp.kt` | Application class (@HiltAndroidApp), Coil image loader config |
 
 ## Domain Layer (`domain/`)
@@ -30,7 +30,7 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 
 | File | Key Methods |
 |------|-------------|
-| `MusicRepository.kt` | `getAllSongs()`, `getSongsByFolder/Album/Artist/Genre/Year/Composer/AlbumArtist()`, `getAlbums()`, `getArtists()`, `getFolders()`, `getGenres()`, `getYears()`, `getComposers()`, `getAlbumArtists()`, `getFolderHierarchy()`, `searchSongs/Albums/Artists/Folders/AlbumArtists()`, `getScanFolders()`, `addScanFolder()`, `addScanFolderUri()`, `removeScanFolder()`, `refreshLibrary()`, `deleteSong()`, `finalizeDelete()`, `removeFromCache()` |
+| `MusicRepository.kt` | `getAllSongs()`, `getSongsByFolder/Album/Artist/Genre/Year/Composer/AlbumArtist()`, `getAlbums()`, `getArtists()`, `getFolders()`, `getGenres()`, `getYears()`, `getComposers()`, `getAlbumArtists()`, `getFolderHierarchy()`, `searchSongs/Albums/Artists/Folders/AlbumArtists()`, `getScanFolders()`, `addScanFolder()`, `addScanFolderUri()`, `removeScanFolder()`, `refreshLibrary(force = false)`, `deleteSong()`, `finalizeDelete()`, `removeFromCache()` |
 | `PlaylistRepository.kt` | `getAllPlaylists()`, `getSongIdsForPlaylist()`, `createPlaylist()`, `deletePlaylist()`, `renamePlaylist()`, `addSongToPlaylist()`, `removeSongFromPlaylist()`, `getFavoriteIds()`, `isFavorite()`, `toggleFavorite()` |
 
 ### Use Cases (`domain/usecase/`)
@@ -45,21 +45,23 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 
 | File | Notes |
 |------|-------|
-| `MusicRepositoryImpl.kt` | Uses MediaScanner, in-memory cache via `MutableStateFlow<List<Song>>`, DataStore for scan folder prefs |
+| `MusicRepositoryImpl.kt` | Uses MediaScanner, in-memory cache via `MutableStateFlow<List<Song>>`, DataStore for scan folder prefs. On first `refreshLibrary()` of the process, hydrates the in-memory cache from the `cached_songs` Room table so the UI populates instantly, then runs MediaScanner once per session and writes the snapshot back via `cachedSongDao.replaceAll()`. Subsequent calls are no-ops unless `force = true`. No background workers — the cache is only refreshed while the app is in the foreground. |
 | `PlaylistRepositoryImpl.kt` | Uses PlaylistDao + FavoriteDao from Room |
 
 ### Room Database (`data/local/db/`)
 
 | File | Purpose |
 |------|---------|
-| `MusicDatabase.kt` | Room DB v2, migration v1→v2 adds search_history table |
+| `MusicDatabase.kt` | Room DB v3. v1→v2 adds search_history; v2→v3 adds cached_songs. |
 | `PlaylistEntity.kt` | Table: `playlists` (id, name, createdAt) |
 | `PlaylistSongEntity.kt` | Table: `playlist_songs` (playlistId+songId composite PK, position, addedAt) |
 | `FavoriteEntity.kt` | Table: `favorites` (songId PK, addedAt) |
 | `SearchHistoryEntity.kt` | Table: `search_history` (id, query, timestamp) |
+| `CachedSongEntity.kt` | Table: `cached_songs`. Persistent snapshot of the scanned library (all `Song` fields, with `Uri`s stored as strings). |
 | `PlaylistDao.kt` | CRUD for playlists + playlist-songs, song count queries |
 | `FavoriteDao.kt` | add/remove/check favorites, get all favorite IDs |
 | `SearchHistoryDao.kt` | insert/delete searches, getRecentSearches (limit 20) |
+| `CachedSongDao.kt` | `getAll()`, `insertAll()`, `clear()`, `replaceAll()` (transactional clear+insert). Used only by `MusicRepositoryImpl` to back the library cache. |
 
 ### Media Scanner (`data/local/scanner/`)
 

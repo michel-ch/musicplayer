@@ -33,11 +33,11 @@ Pure Kotlin, no Android dependencies.
 | `FavoriteEntity` | favorites | Favorited song IDs |
 | `SearchHistoryEntity` | search_history | Recent search queries |
 
-Three DAOs: `PlaylistDao`, `FavoriteDao`, `SearchHistoryDao`.
+Four DAOs: `PlaylistDao`, `FavoriteDao`, `SearchHistoryDao`, `CachedSongDao`.
 
 **MediaScanner** -- discovers audio files via MediaStore and custom folder scanning (SAF). Builds genre/composer maps from jAudioTagger metadata.
 
-**Repository implementations** -- `MusicRepositoryImpl` and `PlaylistRepositoryImpl` implement the domain interfaces.
+**Repository implementations** -- `MusicRepositoryImpl` and `PlaylistRepositoryImpl` implement the domain interfaces. `MusicRepositoryImpl` keeps an in-memory `MutableStateFlow<List<Song>>` and persists every scan to the `cached_songs` Room table. On the first `refreshLibrary()` of a process it hydrates the in-memory cache from disk (instant UI), then runs MediaScanner once per session and writes the new snapshot back. Settings rescan and folder add/remove pass `force = true` to bypass the once-per-session guard. Nothing runs in the background — there is no `WorkManager`/`JobScheduler`/receiver, so the cache costs no energy when the app is not launched.
 
 ## Playback System (`player/`)
 

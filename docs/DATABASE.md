@@ -2,8 +2,9 @@
 
 Room database: `MusicDatabase` (`data/local/db/MusicDatabase.kt`)
 - Name: `music_player.db`
-- Version: 2
+- Version: 3
 - Migration v1→v2: added `search_history` table
+- Migration v2→v3: added `cached_songs` table (library cache)
 
 ## Schema
 
@@ -41,6 +42,33 @@ Indexed on: playlistId, songId
 | query | String | |
 | timestamp | Long | |
 
+### `cached_songs`
+
+Persistent snapshot of the scanned library so the UI can render instantly on startup. Replaced as a unit on each scan; never read by features other than `MusicRepositoryImpl`.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | Long | PRIMARY KEY |
+| title | String | |
+| artist | String | |
+| album | String | |
+| albumId | Long | |
+| duration | Long | ms |
+| trackNumber | Int | |
+| discNumber | Int | |
+| year | Int | |
+| genre | String | |
+| folderPath | String | |
+| folderName | String | |
+| filePath | String | |
+| fileName | String | |
+| size | Long | bytes |
+| dateAdded | Long | epoch s |
+| dateModified | Long | epoch s |
+| uri | String | content:// or file:// |
+| albumArtUri | String? | nullable |
+| composer | String | |
+
 ## DAO Methods
 
 ### PlaylistDao (`PlaylistDao.kt`)
@@ -76,6 +104,15 @@ getRecentSearches(): Flow<List<SearchHistoryEntity>>  // limit 20
 insert(entry: SearchHistoryEntity)
 deleteById(id: Long)
 clearAll()
+```
+
+### CachedSongDao (`CachedSongDao.kt`)
+
+```
+getAll(): List<CachedSongEntity>
+insertAll(songs: List<CachedSongEntity>)
+clear()
+replaceAll(songs: List<CachedSongEntity>)  // @Transaction: clear + insertAll
 ```
 
 ## Adding a New Table

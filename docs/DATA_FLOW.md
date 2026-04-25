@@ -24,10 +24,10 @@ MediaStore (Android system)      Room Database           DataStore (Preferences)
 ## Music Library Flow
 
 1. `MusicRepositoryImpl` uses `MediaScanner` to query MediaStore for audio files
-2. Results cached in `MutableStateFlow<List<Song>>` (in-memory)
+2. Results cached in `MutableStateFlow<List<Song>>` (in-memory) and persisted to the Room `cached_songs` table
 3. Category queries (albums, artists, genres, etc.) filter from the cached song list
 4. ViewModels collect these flows and expose them as `StateFlow` to UI
-5. `refreshLibrary()` re-scans MediaStore and updates the cache
+5. `refreshLibrary(force)` first hydrates the in-memory cache from `cached_songs` (instant), then re-scans MediaStore once per app session and writes the new snapshot back to disk. Settings rescan / folder add-remove pass `force = true` to bypass the per-session guard. No background workers — work only happens while the app is in the foreground.
 
 ## Playlist/Favorites Flow
 
@@ -72,7 +72,7 @@ When entering a song list screen that contains the currently playing (or paused)
 
 ```
 AppModule ──provides──→ DataStore<Preferences>
-DatabaseModule ──provides──→ MusicDatabase, PlaylistDao, FavoriteDao, SearchHistoryDao
+DatabaseModule ──provides──→ MusicDatabase, PlaylistDao, FavoriteDao, SearchHistoryDao, CachedSongDao
 RepositoryModule ──binds──→ MusicRepositoryImpl : MusicRepository
                  ──binds──→ PlaylistRepositoryImpl : PlaylistRepository
 

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,6 +16,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.musicplayer.app.player.service.PlaybackService
 import com.musicplayer.app.ui.MusicPlayerRoot
 import com.musicplayer.app.ui.theme.MusicPlayerTheme
@@ -22,6 +29,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -33,7 +45,12 @@ class MainActivity : ComponentActivity() {
         fun consumeNowPlayingNavigation() {
             _navigateToNowPlaying.value = false
         }
+
+        private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
     }
+
+    @Inject
+    lateinit var dataStore: DataStore<Preferences>
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -53,6 +70,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         requestPermissions()
         handleIntent(intent)
+        observeKeepScreenOn()
 
         setContent {
             MusicPlayerTheme {
@@ -74,6 +92,23 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == PlaybackService.ACTION_OPEN_NOW_PLAYING) {
             _navigateToNowPlaying.value = true
+        }
+    }
+
+    private fun observeKeepScreenOn() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                dataStore.data
+                    .map { prefs -> prefs[KEEP_SCREEN_ON_KEY] ?: false }
+                    .distinctUntilChanged()
+                    .collectLatest { keepOn ->
+                        if (keepOn) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
+                    }
+            }
         }
     }
 

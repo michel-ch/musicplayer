@@ -10,6 +10,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.musicplayer.app.data.local.db.CachedSongDao
+import com.musicplayer.app.data.local.db.CachedSongEntity
 import com.musicplayer.app.data.local.scanner.MediaScanner
 import com.musicplayer.app.domain.model.Album
 import com.musicplayer.app.domain.model.Artist
@@ -33,7 +35,8 @@ import javax.inject.Singleton
 class MusicRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val mediaScanner: MediaScanner,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val cachedSongDao: CachedSongDao
 ) : MusicRepository {
 
     companion object {
@@ -43,6 +46,12 @@ class MusicRepositoryImpl @Inject constructor(
     }
 
     private val songsCache = MutableStateFlow<List<Song>>(emptyList())
+
+    @Volatile
+    private var diskCacheLoaded = false
+
+    @Volatile
+    private var scannedThisSession = false
 
     override fun getAllSongs(): Flow<List<Song>> = songsCache
 
@@ -243,13 +252,73 @@ class MusicRepositoryImpl @Inject constructor(
         }.toMap()
     }
 
-    override suspend fun refreshLibrary() {
+    override suspend fun refreshLibrary(force: Boolean) {
+        if (!diskCacheLoaded) {
+            val cached = cachedSongDao.getAll().map { it.toSong() }
+            if (cached.isNotEmpty() && songsCache.value.isEmpty()) {
+                songsCache.value = cached
+            }
+            diskCacheLoaded = true
+        }
+        if (scannedThisSession && !force) return
+        scannedThisSession = true
+
         val prefs = dataStore.data.first()
         val folders = prefs[SCAN_FOLDERS_KEY] ?: emptySet()
         val uriEntries = prefs[SCAN_FOLDER_URIS_KEY] ?: emptySet()
         val uriMap = parseFolderUriMap(uriEntries)
-        songsCache.value = mediaScanner.scanAllSongs(folders.toList(), uriMap)
+        val scanned = mediaScanner.scanAllSongs(folders.toList(), uriMap)
+        if (scanned != songsCache.value) {
+            songsCache.value = scanned
+        }
+        cachedSongDao.replaceAll(scanned.map { it.toEntity() })
     }
+
+    private fun Song.toEntity() = CachedSongEntity(
+        id = id,
+        title = title,
+        artist = artist,
+        album = album,
+        albumId = albumId,
+        duration = duration,
+        trackNumber = trackNumber,
+        discNumber = discNumber,
+        year = year,
+        genre = genre,
+        folderPath = folderPath,
+        folderName = folderName,
+        filePath = filePath,
+        fileName = fileName,
+        size = size,
+        dateAdded = dateAdded,
+        dateModified = dateModified,
+        uri = uri.toString(),
+        albumArtUri = albumArtUri?.toString(),
+        composer = composer
+    )
+
+    private fun CachedSongEntity.toSong() = Song(
+        id = id,
+        title = title,
+        artist = artist,
+        album = album,
+        albumId = albumId,
+        duration = duration,
+        trackNumber = trackNumber,
+        discNumber = discNumber,
+        year = year,
+        genre = genre,
+        folderPath = folderPath,
+        folderName = folderName,
+        filePath = filePath,
+        fileName = fileName,
+        size = size,
+        dateAdded = dateAdded,
+        dateModified = dateModified,
+        uri = Uri.parse(uri),
+        albumArtUri = albumArtUri?.let { Uri.parse(it) },
+        composer = composer
+    )
 
     override suspend fun deleteSong(song: Song): DeleteResult {
         val contentUri = resolveContentUri(song)

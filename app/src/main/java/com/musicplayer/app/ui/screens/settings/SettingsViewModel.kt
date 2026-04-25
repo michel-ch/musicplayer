@@ -116,20 +116,20 @@ class SettingsViewModel @Inject constructor(
             if (treeUri != null) {
                 musicRepository.addScanFolderUri(path, treeUri)
             }
-            musicRepository.refreshLibrary()
+            musicRepository.refreshLibrary(force = true)
         }
     }
 
     fun removeScanFolder(path: String) {
         viewModelScope.launch {
             musicRepository.removeScanFolder(path)
-            musicRepository.refreshLibrary()
+            musicRepository.refreshLibrary(force = true)
         }
     }
 
     fun rescanLibrary() {
         viewModelScope.launch {
-            musicRepository.refreshLibrary()
+            musicRepository.refreshLibrary(force = true)
         }
     }
 

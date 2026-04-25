@@ -36,7 +36,7 @@ interface MusicRepository {
     suspend fun addScanFolder(path: String)
     suspend fun addScanFolderUri(path: String, uri: String)
     suspend fun removeScanFolder(path: String)
-    suspend fun refreshLibrary()
+    suspend fun refreshLibrary(force: Boolean = false)
     suspend fun deleteSong(song: Song): DeleteResult
     suspend fun finalizeDelete(song: Song): DeleteResult
     suspend fun removeFromCache(song: Song)

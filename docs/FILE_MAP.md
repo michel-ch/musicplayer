@@ -37,7 +37,7 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 
 | File | Purpose |
 |------|---------|
-| `SortSongsUseCase.kt` | Applies SortOption to a list of songs |
+| `SortSongsUseCase.kt` | Applies SortOption to a list of songs. Filename sort uses natural order (digit runs compared numerically, so "7 - …" precedes "19 - …"). |
 
 ## Data Layer (`data/`)
 

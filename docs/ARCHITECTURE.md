@@ -20,7 +20,7 @@ Pure Kotlin, no Android dependencies.
 
 **Repository interfaces** -- `MusicRepository` (songs, albums, artists, folders, genres, years, composers, favorites, scanning, deletion) and `PlaylistRepository` (CRUD for playlists).
 
-**Use cases** -- `SortSongsUseCase` applies a `SortOption` to a song list.
+**Use cases** -- `SortSongsUseCase` applies a `SortOption` to a song list. Filename sort uses natural alphanumeric order so `7 - …` sorts before `19 - …`.
 
 ## Data Layer (`data/`)
 

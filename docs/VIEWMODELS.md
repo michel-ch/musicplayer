@@ -63,7 +63,7 @@ class FooViewModel @Inject constructor(
 
 ### SettingsViewModel (`ui/screens/settings/`)
 - **Injects**: DataStore, MusicRepository
-- **State**: `darkMode`, `scanFolders`, `gaplessPlayback`, `crossfadeEnabled`, `crossfadeDuration`, `showAlbumArt`, `highResArt`, `showWaveform`, `autoResumeOnHeadset`, `keepScreenOn`, `showLockScreenControls`, `continueToNextFolder`
+- **State**: `darkMode`, `scanFolders`, `gaplessPlayback`, `crossfadeEnabled`, `crossfadeDuration`, `showAlbumArt`, `highResArt`, `showWaveform`, `autoResumeOnHeadset`, `resumeOnAppForeground` (default `true`; backed by `RESUME_ON_APP_FOREGROUND_KEY` which `MainActivity.onResume` reads to decide whether to auto-resume paused playback when a BT audio output is currently connected), `keepScreenOn`, `showLockScreenControls`, `continueToNextFolder`
 - **Methods**: toggle methods for each setting, `addScanFolder()`, `removeScanFolder()`
 
 ### Detail ViewModels (album, artist, genre, year, composer, albumartist, folder)

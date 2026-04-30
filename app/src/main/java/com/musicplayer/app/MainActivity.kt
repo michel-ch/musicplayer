@@ -1,8 +1,11 @@
 package com.musicplayer.app
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -22,8 +25,10 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.musicplayer.app.player.PlaybackController
 import com.musicplayer.app.player.service.PlaybackService
 import com.musicplayer.app.ui.MusicPlayerRoot
+import com.musicplayer.app.ui.screens.settings.SettingsViewModel
 import com.musicplayer.app.ui.theme.MusicPlayerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +36,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -51,6 +57,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var dataStore: DataStore<Preferences>
+
+    @Inject
+    lateinit var playbackController: PlaybackController
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -87,6 +96,39 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        maybeResumeOnForeground()
+    }
+
+    private fun maybeResumeOnForeground() {
+        // Resume paused playback when the app is foregrounded while a Bluetooth audio
+        // device is currently connected.  Gated by a user setting (default on) and only
+        // fires when there's a queue but the player is paused.
+        lifecycleScope.launch {
+            val enabled = dataStore.data
+                .map { it[SettingsViewModel.RESUME_ON_APP_FOREGROUND_KEY] ?: true }
+                .first()
+            if (!enabled) return@launch
+            if (!isBluetoothAudioConnected()) return@launch
+            val state = playbackController.playbackState.value
+            if (state.currentSong != null && !state.isPlaying) {
+                playbackController.play()
+            }
+        }
+    }
+
+    private fun isBluetoothAudioConnected(): Boolean {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return false
+        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        return devices.any { device ->
+            device.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                    device.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
+        }
     }
 
     private fun handleIntent(intent: Intent?) {

@@ -164,7 +164,11 @@ class PlaybackService : MediaSessionService() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = mediaSession?.player
-        if (player == null || !player.playWhenReady || player.mediaItemCount == 0) {
+        // Only stop the service when there is no queue.  Tearing down on `!playWhenReady`
+        // also kills the session after a Bluetooth disconnect (which auto-pauses via
+        // `setHandleAudioBecomingNoisy`), so the MiniPlayer would lose its backing state
+        // when the user reopens the app.
+        if (player == null || player.mediaItemCount == 0) {
             stopSelf()
         }
     }

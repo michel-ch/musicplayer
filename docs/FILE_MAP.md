@@ -6,7 +6,7 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 
 | File | Purpose |
 |------|---------|
-| `MainActivity.kt` | Activity entry point, permission handling, Hilt setup. Observes the `keep_screen_on` DataStore flag while STARTED and toggles `FLAG_KEEP_SCREEN_ON` on the window — flag is released when the activity is backgrounded so it never blocks system standby. |
+| `MainActivity.kt` | Activity entry point, permission handling, Hilt setup. Observes the `keep_screen_on` DataStore flag while STARTED and toggles `FLAG_KEEP_SCREEN_ON` on the window — flag is released when the activity is backgrounded so it never blocks system standby. `onResume` calls `maybeResumeOnForeground()` which checks the `resume_on_app_foreground` setting, asks `AudioManager.getDevices(GET_DEVICES_OUTPUTS)` whether a BT audio output (A2DP / SCO / BLE headset on API 31+) is connected, and resumes paused playback via the injected `PlaybackController`. |
 | `MusicPlayerApp.kt` | Application class (@HiltAndroidApp), Coil image loader config |
 
 ## Domain Layer (`domain/`)
@@ -73,13 +73,13 @@ Complete listing of every source file with its purpose. Base path: `app/src/main
 
 | File | Purpose |
 |------|---------|
-| `PlaybackController.kt` | @Singleton. Controls ExoPlayer via Media3 MediaController. Exposes `playbackState: StateFlow<PlaybackState>`. Methods: `playSongs()`, `playAtIndex()`, `togglePlayPause()`, `skipToNext()`, `skipToPrevious()`, `seekToFraction()`, `toggleShuffle()`, `toggleRepeatMode()`, `onSongDeleted()`. Persists queue to DataStore **and** to a synchronous `playback_snapshot` SharedPreferences cache used to hydrate `_playbackState` in `init` before the UI subscribes — keeps the MiniPlayer visible across process restarts. Injects MusicRepository for folder-continuation. `onEvents` listener syncs state after every event batch for BT disconnect resilience; `onMediaItemTransition(null, …)` is ignored so service teardown cannot clear `currentSong`. |
+| `PlaybackController.kt` | @Singleton. Controls ExoPlayer via Media3 MediaController. Exposes `playbackState: StateFlow<PlaybackState>`. Methods: `playSongs()`, `playAtIndex()`, `togglePlayPause()`, `skipToNext()`, `skipToPrevious()`, `seekToFraction()`, `toggleShuffle()`, `toggleRepeatMode()`, `onSongDeleted()`. Persists queue to DataStore **and** to a synchronous `playback_snapshot` SharedPreferences cache used to hydrate `_playbackState` in `init` before the UI subscribes — keeps the MiniPlayer visible across process restarts. Injects MusicRepository for folder-continuation. `onEvents` listener syncs state after every event batch for BT disconnect resilience and tolerates an empty in-memory queue (preserves existing `currentSong` or rehydrates from snapshot); `onMediaItemTransition(null, …)` is ignored so service teardown cannot clear `currentSong`. The reconnect path also falls back to `restoreSnapshotSync()` when `queueManager.queue` is empty *and* `currentSong` is null, so a service kill triggered by BT-induced auto-pause cannot drop the MiniPlayer. |
 | `QueueManager.kt` | @Singleton. Manages queue + currentIndex. Maintains both shuffled and original order. Methods: `setQueue()`, `skipToIndex()`, `skipToNext()`, `skipToPrevious()`, `toggleShuffle()`, `addToQueue()`, `removeFromQueue()`, `clear()` |
 | `SongDeletionHandler.kt` | @Singleton. Single entry point for song deletion: `delete(song)` issues the repository call, on Android R+ surfaces the `IntentSender` confirmation via `confirmationRequest: SharedFlow`, then on result calls `finalizeDelete()`, evicts the song from the queue, and emits user-facing `feedback: SharedFlow<String>` for the Snackbar. |
 | `PlaybackState.kt` | Data class: currentSong, isPlaying, currentPosition, duration, shuffleEnabled, repeatMode, progress |
 | `RepeatMode.kt` | Enum: OFF, ALL, ONE with `next()` cycle |
 | `BluetoothReceiver.kt` | Handles Bluetooth device connect/disconnect events |
-| `service/PlaybackService.kt` | MediaSessionService wrapping ExoPlayer. Foreground service, audio focus, media notification, initializes EqualizerManager |
+| `service/PlaybackService.kt` | MediaSessionService wrapping ExoPlayer. Foreground service, audio focus, media notification, initializes EqualizerManager. `onTaskRemoved` only calls `stopSelf()` when the queue is empty (`mediaItemCount == 0`) — keeps the session alive after BT-induced auto-pause so the user can resume on app re-open without losing state. |
 | `audio/EqualizerManager.kt` | Wraps Android AudioFX Equalizer + BassBoost, persists settings to DataStore |
 
 ## DI Layer (`di/`)

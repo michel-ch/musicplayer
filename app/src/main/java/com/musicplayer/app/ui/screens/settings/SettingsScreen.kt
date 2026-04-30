@@ -112,6 +112,7 @@ fun SettingsScreen(
     val highResArt by viewModel.highResArt.collectAsState()
     val showWaveform by viewModel.showWaveform.collectAsState()
     val autoResumeOnHeadset by viewModel.autoResumeOnHeadset.collectAsState()
+    val resumeOnAppForeground by viewModel.resumeOnAppForeground.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val showLockScreenControls by viewModel.showLockScreenControls.collectAsState()
     val continueToNextFolder by viewModel.continueToNextFolder.collectAsState()
@@ -241,6 +242,15 @@ fun SettingsScreen(
                     subtitle = "Resume playback when headset is connected",
                     checked = autoResumeOnHeadset,
                     onToggle = { viewModel.toggleAutoResumeOnHeadset() }
+                )
+            }
+
+            item {
+                SettingsToggleRow(
+                    title = "Resume on App Open",
+                    subtitle = "Resume paused playback when opening the app while Bluetooth is connected",
+                    checked = resumeOnAppForeground,
+                    onToggle = { viewModel.toggleResumeOnAppForeground() }
                 )
             }
 

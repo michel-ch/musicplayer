@@ -305,7 +305,14 @@ class PlaybackController @Inject constructor(
                 // loading media items once it reads from DataStore.
                 // However, if this is a reconnect and queueManager already has songs,
                 // reload them into the fresh service so playback can resume.
-                val queue = queueManager.queue.value
+                var queue = queueManager.queue.value
+                // Fallback: a service kill triggered by a Bluetooth disconnect (auto-pause →
+                // task removed) can leave us reconnecting with an empty queue and a null
+                // currentSong.  Re-read the synchronous snapshot so the MiniPlayer recovers.
+                if (queue.isEmpty() && _playbackState.value.currentSong == null) {
+                    restoreSnapshotSync()
+                    queue = queueManager.queue.value
+                }
                 if (queue.isNotEmpty()) {
                     mediaController?.apply {
                         if (mediaItemCount == 0) {
@@ -394,10 +401,25 @@ class PlaybackController @Inject constructor(
                 // individual callbacks are missed during Bluetooth disconnect /
                 // audio-source changes / service reconnection.
                 val controller = mediaController ?: return
-                val queue = queueManager.queue.value
-                if (queue.isEmpty()) return
+                var queue = queueManager.queue.value
 
-                val idx = controller.currentMediaItemIndex
+                // If the in-memory queue was lost (e.g. service kill after BT-induced
+                // pause) but the snapshot still has it, recover from disk before giving up.
+                if (queue.isEmpty()) {
+                    if (_playbackState.value.currentSong != null) {
+                        // currentSong is intact — at least keep isPlaying in sync.
+                        _playbackState.update { it.copy(isPlaying = controller.isPlaying) }
+                        return
+                    }
+                    restoreSnapshotSync()
+                    queue = queueManager.queue.value
+                    if (queue.isEmpty()) return
+                }
+
+                val idx = controller.currentMediaItemIndex.let {
+                    if (it in queue.indices) it
+                    else queueManager.currentIndex.value.coerceIn(0, queue.size - 1)
+                }
                 if (idx !in queue.indices) return
 
                 val song = queue[idx]

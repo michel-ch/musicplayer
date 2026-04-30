@@ -49,7 +49,7 @@ All singletons, Hilt-injected:
 
 - **`SongDeletionHandler`** -- centralises the delete flow (request, Android-R+ confirmation, queue eviction, snackbar feedback) behind a single `delete(song)` call used by every list ViewModel.
 
-- **`PlaybackService`** -- `MediaSessionService` running ExoPlayer in a foreground service. Handles audio focus, notification artwork, and initializes `EqualizerManager`.
+- **`PlaybackService`** -- `MediaSessionService` running ExoPlayer in a foreground service. Handles audio focus, notification artwork, and initializes `EqualizerManager`. `onTaskRemoved` only stops the service when the queue is empty, so a Bluetooth-induced auto-pause does not trigger a service kill when the user swipes the app away.
 
 - **`EqualizerManager`** (`player/audio/`) -- wraps Android AudioFX Equalizer and BassBoost. Persists band levels and presets to DataStore.
 

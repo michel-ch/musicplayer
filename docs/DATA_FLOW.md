@@ -50,8 +50,20 @@ MediaStore (Android system)      Room Database           DataStore (Preferences)
 3. PlaybackController → MediaController → sends MediaItems to ExoPlayer (in PlaybackService)
 4. ExoPlayer plays → position updates → PlaybackController polls and updates `playbackState` StateFlow
 5. UI collects `playbackState` and recomposes (MiniPlayer, NowPlayingScreen)
-6. `onEvents` listener verifies state consistency after every event batch (resilience for BT disconnect / audio source changes)
-7. On every track change, PlaybackController writes a synchronous snapshot (queue JSON, index, source route) to the `playback_snapshot` SharedPreferences file, so `_playbackState` can be rehydrated in `init` before the UI subscribes on a subsequent process start.
+6. `onEvents` listener verifies state consistency after every event batch (resilience for BT disconnect / audio source changes). If the in-memory queue is empty but `currentSong` is intact, only `isPlaying` is reconciled; if `currentSong` is also null, the listener falls back to `restoreSnapshotSync()` before reconciling.
+7. On every track change, PlaybackController writes a synchronous snapshot (queue JSON, index, source route) to the `playback_snapshot` SharedPreferences file, so `_playbackState` can be rehydrated in `init` before the UI subscribes on a subsequent process start. The reconnect path (when `mediaController.onDisconnected` fires after a service kill, e.g. BT-induced auto-pause + task removal) also falls back to this snapshot when `queueManager.queue` is empty *and* `currentSong` is null.
+
+## Resume-on-Foreground Flow
+
+1. User pauses playback (manually or via auto-pause from `setHandleAudioBecomingNoisy` after BT disconnect).
+2. App is sent to background. `PlaybackService.onTaskRemoved` keeps the service alive while `mediaItemCount > 0`.
+3. User reopens the app → `MainActivity.onResume()` → `maybeResumeOnForeground()`.
+4. The handler reads `RESUME_ON_APP_FOREGROUND_KEY` from DataStore (default `true`). If false, exit.
+5. `AudioManager.getDevices(GET_DEVICES_OUTPUTS)` is filtered for `TYPE_BLUETOOTH_A2DP` / `TYPE_BLUETOOTH_SCO` / `TYPE_BLE_HEADSET` (gated to API 31+ for BLE). If no BT audio output is connected, exit.
+6. `playbackController.playbackState.value` is checked for `currentSong != null && !isPlaying`. If the player is already playing or has no queue, exit.
+7. Otherwise, `playbackController.play()` resumes playback.
+
+This complements the BluetoothReceiver auto-resume (which fires on the BT connect *event* via broadcast) by handling the case where BT was already connected before the user opened the app.
 
 ## Delete Flow
 

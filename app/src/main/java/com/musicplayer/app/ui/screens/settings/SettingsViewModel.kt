@@ -31,6 +31,7 @@ class SettingsViewModel @Inject constructor(
         private val HIGH_RES_ART_KEY = booleanPreferencesKey("high_res_art")
         private val SHOW_WAVEFORM_KEY = booleanPreferencesKey("show_waveform")
         private val AUTO_RESUME_HEADSET_KEY = booleanPreferencesKey("auto_resume_headset")
+        val RESUME_ON_APP_FOREGROUND_KEY = booleanPreferencesKey("resume_on_app_foreground")
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
         private val SHOW_LOCK_SCREEN_CONTROLS_KEY = booleanPreferencesKey("show_lock_screen_controls")
         private val CONTINUE_TO_NEXT_FOLDER_KEY = booleanPreferencesKey("continue_to_next_folder")
@@ -71,6 +72,10 @@ class SettingsViewModel @Inject constructor(
         .map { prefs -> prefs[AUTO_RESUME_HEADSET_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.Lazily, false)
 
+    val resumeOnAppForeground: StateFlow<Boolean> = dataStore.data
+        .map { prefs -> prefs[RESUME_ON_APP_FOREGROUND_KEY] ?: true }
+        .stateIn(viewModelScope, SharingStarted.Lazily, true)
+
     val keepScreenOn: StateFlow<Boolean> = dataStore.data
         .map { prefs -> prefs[KEEP_SCREEN_ON_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.Lazily, false)
@@ -90,6 +95,7 @@ class SettingsViewModel @Inject constructor(
     fun toggleHighResArt() = toggleBoolPref(HIGH_RES_ART_KEY, false)
     fun toggleShowWaveform() = toggleBoolPref(SHOW_WAVEFORM_KEY, true)
     fun toggleAutoResumeOnHeadset() = toggleBoolPref(AUTO_RESUME_HEADSET_KEY, false)
+    fun toggleResumeOnAppForeground() = toggleBoolPref(RESUME_ON_APP_FOREGROUND_KEY, true)
     fun toggleKeepScreenOn() = toggleBoolPref(KEEP_SCREEN_ON_KEY, false)
     fun toggleShowLockScreenControls() = toggleBoolPref(SHOW_LOCK_SCREEN_CONTROLS_KEY, true)
     fun toggleContinueToNextFolder() = toggleBoolPref(CONTINUE_TO_NEXT_FOLDER_KEY, false)

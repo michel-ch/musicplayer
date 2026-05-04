@@ -10,15 +10,17 @@ local.properties
 *.jks
 *.keystore
 app/release/
+app/debug/
 captures/
 .externalNativeBuild/
 .cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
 
 ### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
+.idea/
 *.iws
 *.iml
 *.ipr
@@ -54,6 +56,13 @@ bin/
 ### Windows ###
 nul
 Thumbs.db
+
+### Misc ###
+*.log
+*.bak
+*.tmp
+*.swp
+*~
 
 ### Claude Code ###
 CLAUDE.md

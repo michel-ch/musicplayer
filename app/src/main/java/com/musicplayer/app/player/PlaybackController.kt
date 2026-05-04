@@ -269,7 +269,25 @@ class PlaybackController @Inject constructor(
             })
             .buildAsync()
         controllerFuture.addListener({
-            mediaController = controllerFuture.get()
+            val controller = try {
+                controllerFuture.get()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to obtain MediaController; retrying", e)
+                scope.launch(Dispatchers.Main) {
+                    delay(500)
+                    connectToService()
+                }
+                return@addListener
+            }
+            if (controller == null) {
+                Log.w(TAG, "MediaController future returned null; retrying")
+                scope.launch(Dispatchers.Main) {
+                    delay(500)
+                    connectToService()
+                }
+                return@addListener
+            }
+            mediaController = controller
             setupPlayerListener()
 
             val restored = pendingRestore.getAndSet(null)
@@ -455,11 +473,16 @@ class PlaybackController @Inject constructor(
             }
             RepeatMode.OFF -> {
                 scope.launch {
-                    val prefs = dataStore.data.first()
-                    val continueToNextFolder = prefs[CONTINUE_TO_NEXT_FOLDER] ?: false
-                    if (continueToNextFolder) {
-                        playNextFolder()
-                    } else {
+                    try {
+                        val prefs = dataStore.data.first()
+                        val continueToNextFolder = prefs[CONTINUE_TO_NEXT_FOLDER] ?: false
+                        if (continueToNextFolder) {
+                            playNextFolder()
+                        } else {
+                            _playbackState.update { it.copy(isPlaying = false) }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to handle end of playback", e)
                         _playbackState.update { it.copy(isPlaying = false) }
                     }
                 }
@@ -561,7 +584,23 @@ class PlaybackController @Inject constructor(
                             0
                         )
                     } else {
-                        val song = _playbackState.value.currentSong ?: return
+                        var song = _playbackState.value.currentSong
+                        if (song == null) {
+                            Log.w(TAG, "togglePlayPause with empty queue and null currentSong; restoring snapshot")
+                            restoreSnapshotSync()
+                            val recoveredQueue = queueManager.queue.value
+                            if (recoveredQueue.isNotEmpty()) {
+                                controller.setMediaItems(
+                                    recoveredQueue.map { it.toMediaItem() },
+                                    queueManager.currentIndex.value.coerceAtLeast(0),
+                                    0
+                                )
+                                controller.prepare()
+                                controller.play()
+                                return
+                            }
+                            song = _playbackState.value.currentSong ?: return
+                        }
                         controller.setMediaItems(listOf(song.toMediaItem()), 0, 0)
                     }
                     controller.prepare()

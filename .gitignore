@@ -57,6 +57,9 @@ Thumbs.db
 
 ### Claude Code ###
 CLAUDE.md
+.claude/
+.claude*
+graphify-out/
 
 ### Syncthing ###
 .stfolder/

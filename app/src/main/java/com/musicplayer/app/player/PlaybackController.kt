@@ -15,6 +15,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -378,6 +379,12 @@ class PlaybackController @Inject constructor(
         mediaController?.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 _playbackState.update { it.copy(isPlaying = isPlaying) }
+                // Persist a fresh snapshot whenever we pause so a process kill while
+                // paused (e.g. after a BT toggle / audio focus loss) still recovers
+                // the queue on relaunch.
+                if (!isPlaying) {
+                    _playbackState.value.currentSong?.let { saveLastSong(it) }
+                }
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -410,6 +417,23 @@ class PlaybackController @Inject constructor(
                 }
                 if (playbackState == Player.STATE_ENDED) {
                     handlePlaybackEnded()
+                }
+                if (playbackState == Player.STATE_IDLE) {
+                    // ExoPlayer can land in IDLE after an audio-sink failure (e.g. BT
+                    // routing change). Re-prepare so the controller is usable again
+                    // instead of leaving the MiniPlayer with controls that do nothing.
+                    val controller = mediaController ?: return
+                    if (controller.mediaItemCount > 0) {
+                        controller.prepare()
+                    }
+                }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                Log.w(TAG, "Player error; attempting to recover", error)
+                val controller = mediaController ?: return
+                if (controller.mediaItemCount > 0) {
+                    controller.prepare()
                 }
             }
 

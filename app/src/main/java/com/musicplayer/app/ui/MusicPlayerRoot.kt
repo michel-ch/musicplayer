@@ -37,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -81,8 +82,8 @@ fun MusicPlayerRoot(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val playbackState by viewModel.playbackController.playbackState.collectAsState()
-    val sourceRoute by viewModel.playbackController.sourceRoute.collectAsState()
+    val playbackState by viewModel.playbackController.playbackState.collectAsStateWithLifecycle()
+    val sourceRoute by viewModel.playbackController.sourceRoute.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val deleteLauncher = rememberLauncherForActivityResult(

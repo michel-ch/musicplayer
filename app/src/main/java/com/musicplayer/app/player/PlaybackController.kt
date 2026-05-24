@@ -184,6 +184,15 @@ class PlaybackController @Inject constructor(
         val queue = queueManager.queue.value
         val currentIndex = queueManager.currentIndex.value
         val route = _sourceRoute.value
+        // Never erase a valid snapshot with an empty one. A BT-triggered service
+        // teardown can clear the queue between an event firing and this call —
+        // writing emptyList() would `remove()` the SharedPreferences keys and
+        // leave restoreSnapshotSync() with nothing to restore on next launch.
+        // Intentional clears (last-song deletion) call writeSnapshot directly.
+        if (queue.isEmpty()) {
+            Log.w(TAG, "saveLastSong with empty queue; refusing destructive write")
+            return
+        }
         writeSnapshot(queue, currentIndex, route)
         scope.launch(Dispatchers.IO) {
             dataStore.edit { prefs ->

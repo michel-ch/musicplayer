@@ -2,9 +2,11 @@ package com.musicplayer.app.player.service
 
 import android.app.PendingIntent
 import android.bluetooth.BluetoothDevice
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
+import android.os.Build
 import android.media.MediaMetadataRetriever
 import android.os.Bundle
 import androidx.datastore.core.DataStore
@@ -74,6 +76,9 @@ class PlaybackService : MediaSessionService() {
                 true // handleAudioFocus
             )
             .setHandleAudioBecomingNoisy(true)
+            // Hold a local wake lock so the playback thread stays alive across
+            // brief device sleeps triggered by Bluetooth routing changes.
+            .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
 
         val sessionId = player.audioSessionId
@@ -151,7 +156,13 @@ class PlaybackService : MediaSessionService() {
                 addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
                 addAction(AudioManager.ACTION_HEADSET_PLUG)
             }
-            registerReceiver(bluetoothReceiver, filter)
+            // API 33+ requires explicit export flags for dynamically-registered receivers;
+            // without the flag the broadcasts can be silently dropped by the system.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(bluetoothReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(bluetoothReceiver, filter)
+            }
             bluetoothReceiverRegistered = true
         } catch (_: SecurityException) {
             // BLUETOOTH_CONNECT permission not granted on API 31+

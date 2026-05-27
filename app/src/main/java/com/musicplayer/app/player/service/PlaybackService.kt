@@ -107,6 +107,25 @@ class PlaybackService : MediaSessionService() {
             .setSessionActivity(pendingIntent)
             .setCustomLayout(listOf(closeButton))
             .setCallback(object : MediaSession.Callback {
+                // Grant the custom STOP_SERVICE command to every connecting
+                // controller (including the system notification controller).
+                // Without this, Media3 filters the Close button out of the
+                // notification because the controller has no permission to
+                // invoke its bound SessionCommand.
+                override fun onConnect(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo
+                ): MediaSession.ConnectionResult {
+                    val sessionCommands = MediaSession.ConnectionResult
+                        .DEFAULT_SESSION_COMMANDS
+                        .buildUpon()
+                        .add(SessionCommand(COMMAND_STOP_SERVICE, Bundle.EMPTY))
+                        .build()
+                    return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                        .setAvailableSessionCommands(sessionCommands)
+                        .build()
+                }
+
                 override fun onCustomCommand(
                     session: MediaSession,
                     controller: MediaSession.ControllerInfo,

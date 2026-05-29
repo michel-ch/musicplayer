@@ -50,7 +50,7 @@ fun AlbumArtistDetailScreen(
     viewModel: AlbumArtistViewModel = hiltViewModel(),
     playlistViewModel: PlaylistViewModel = hiltViewModel()
 ) {
-    viewModel.loadArtist(artistName)
+    LaunchedEffect(artistName) { viewModel.loadArtist(artistName) }
     val songs by viewModel.artistSongs.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val playbackState by viewModel.playbackController.playbackState.collectAsState()

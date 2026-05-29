@@ -21,8 +21,16 @@ class BluetoothReceiver(
                 // Only resume for audio Bluetooth devices, not mice/keyboards/etc.
                 @Suppress("DEPRECATION")
                 val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-                val majorClass = device?.bluetoothClass?.majorDeviceClass
-                if (majorClass == BluetoothClass.Device.Major.AUDIO_VIDEO) {
+                // Reading bluetoothClass requires BLUETOOTH_CONNECT on API 31+; if the
+                // permission was denied this can throw a SecurityException. Treat an
+                // unreadable class as "assume audio" so resume still works rather than
+                // silently dropping every connect event.
+                val majorClass = try {
+                    device?.bluetoothClass?.majorDeviceClass
+                } catch (_: SecurityException) {
+                    null
+                }
+                if (majorClass == null || majorClass == BluetoothClass.Device.Major.AUDIO_VIDEO) {
                     onDeviceConnected()
                 }
             }

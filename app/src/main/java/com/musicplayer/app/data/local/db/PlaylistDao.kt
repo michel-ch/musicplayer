@@ -15,6 +15,19 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlists ORDER BY createdAt DESC")
     fun getAllPlaylists(): Flow<List<PlaylistEntity>>
 
+    /**
+     * Playlists with their song counts in a single query. Because the query touches
+     * playlist_songs, Room re-emits when songs are added/removed — unlike the old
+     * per-playlist count snapshot, whose counts went stale.
+     */
+    @Query(
+        "SELECT p.id AS id, p.name AS name, p.createdAt AS createdAt, " +
+            "COUNT(ps.songId) AS songCount " +
+            "FROM playlists p LEFT JOIN playlist_songs ps ON ps.playlistId = p.id " +
+            "GROUP BY p.id ORDER BY p.createdAt DESC"
+    )
+    fun getAllPlaylistsWithCount(): Flow<List<PlaylistWithCount>>
+
     @Query("SELECT * FROM playlists WHERE id = :id")
     suspend fun getPlaylistById(id: Long): PlaylistEntity?
 

@@ -6,7 +6,6 @@ import com.musicplayer.app.data.local.db.PlaylistEntity
 import com.musicplayer.app.domain.model.Playlist
 import com.musicplayer.app.domain.repository.PlaylistRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,14 +17,13 @@ class PlaylistRepositoryImpl @Inject constructor(
 ) : PlaylistRepository {
 
     override fun getAllPlaylists(): Flow<List<Playlist>> =
-        playlistDao.getAllPlaylists().map { entities ->
-            entities.map { entity ->
-                val count = playlistDao.getPlaylistSongCount(entity.id).first()
+        playlistDao.getAllPlaylistsWithCount().map { rows ->
+            rows.map { row ->
                 Playlist(
-                    id = entity.id,
-                    name = entity.name,
-                    songCount = count,
-                    createdAt = entity.createdAt
+                    id = row.id,
+                    name = row.name,
+                    songCount = row.songCount,
+                    createdAt = row.createdAt
                 )
             }
         }

@@ -50,7 +50,7 @@ fun YearDetailScreen(
     viewModel: YearViewModel = hiltViewModel(),
     playlistViewModel: PlaylistViewModel = hiltViewModel()
 ) {
-    viewModel.loadYear(year)
+    LaunchedEffect(year) { viewModel.loadYear(year) }
     val songs by viewModel.yearSongs.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val playbackState by viewModel.playbackController.playbackState.collectAsState()

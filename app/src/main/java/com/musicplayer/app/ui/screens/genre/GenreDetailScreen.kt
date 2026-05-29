@@ -50,7 +50,7 @@ fun GenreDetailScreen(
     viewModel: GenreViewModel = hiltViewModel(),
     playlistViewModel: PlaylistViewModel = hiltViewModel()
 ) {
-    viewModel.loadGenre(genreName)
+    LaunchedEffect(genreName) { viewModel.loadGenre(genreName) }
     val songs by viewModel.genreSongs.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val playbackState by viewModel.playbackController.playbackState.collectAsState()

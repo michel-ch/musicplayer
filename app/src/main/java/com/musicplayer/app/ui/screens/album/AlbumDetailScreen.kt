@@ -80,7 +80,7 @@ fun AlbumDetailScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    viewModel.loadAlbum(albumId)
+    LaunchedEffect(albumId) { viewModel.loadAlbum(albumId) }
 
     // Auto-scroll to current playing song when entering this screen
     LaunchedEffect(Unit) {

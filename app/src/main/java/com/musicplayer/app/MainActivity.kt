@@ -108,10 +108,12 @@ class MainActivity : ComponentActivity() {
         // device is currently connected.  Gated by a user setting (default on) and only
         // fires when there's a queue but the player is paused.
         lifecycleScope.launch {
-            val enabled = dataStore.data
-                .map { it[SettingsViewModel.RESUME_ON_APP_FOREGROUND_KEY] ?: true }
-                .first()
+            val prefs = dataStore.data.first()
+            val enabled = prefs[SettingsViewModel.RESUME_ON_APP_FOREGROUND_KEY] ?: true
             if (!enabled) return@launch
+            // Don't resume something the user deliberately paused — only recover from
+            // system/auto pauses (e.g. a Bluetooth disconnect auto-pause).
+            if (prefs[PlaybackController.USER_PAUSED_KEY] == true) return@launch
             if (!isBluetoothAudioConnected()) return@launch
             val state = playbackController.playbackState.value
             if (state.currentSong != null && !state.isPlaying) {
@@ -161,6 +163,12 @@ class MainActivity : ComponentActivity() {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             } else {
                 add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            // BLUETOOTH_CONNECT is a runtime permission on API 31+; without it the
+            // BluetoothReceiver cannot read a connected device's class, so the
+            // event-driven headset auto-resume never fires.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Manifest.permission.BLUETOOTH_CONNECT)
             }
         }
 

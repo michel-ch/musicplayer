@@ -65,7 +65,7 @@ fun ArtistDetailScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    viewModel.loadArtist(artistName)
+    LaunchedEffect(artistName) { viewModel.loadArtist(artistName) }
 
     // Auto-scroll to current playing song when entering this screen
     LaunchedEffect(Unit) {

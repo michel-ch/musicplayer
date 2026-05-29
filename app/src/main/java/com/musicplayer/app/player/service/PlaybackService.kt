@@ -11,13 +11,13 @@ import android.media.MediaMetadataRetriever
 import android.os.Bundle
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -28,7 +28,9 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.musicplayer.app.MainActivity
 import com.musicplayer.app.R
 import com.musicplayer.app.player.BluetoothReceiver
+import com.musicplayer.app.player.PlaybackController
 import com.musicplayer.app.player.audio.EqualizerManager
+import com.musicplayer.app.ui.screens.settings.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +50,6 @@ class PlaybackService : MediaSessionService() {
         private const val COMMAND_STOP_SERVICE = "com.musicplayer.app.STOP_SERVICE"
         private val _audioSessionId = MutableStateFlow(0)
         val audioSessionId: StateFlow<Int> = _audioSessionId.asStateFlow()
-        private val AUTO_RESUME_KEY = booleanPreferencesKey("auto_resume_on_headset")
     }
 
     @Inject
@@ -81,11 +82,27 @@ class PlaybackService : MediaSessionService() {
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
 
+        // The audio session id is not assigned until the audio renderer initializes
+        // (typically at first playback), so reading it here usually returns 0/UNSET.
+        // Initialize the equalizer eagerly if it happens to be ready, and also listen
+        // for the session-id-changed event so the EQ/BassBoost actually attach — and
+        // re-attach if the id changes after a Bluetooth route change.
         val sessionId = player.audioSessionId
-        _audioSessionId.value = sessionId
-        if (sessionId != 0) {
+        if (sessionId != C.AUDIO_SESSION_ID_UNSET && sessionId != 0) {
+            _audioSessionId.value = sessionId
             equalizerManager.initialize(sessionId)
         }
+        player.addAnalyticsListener(object : AnalyticsListener {
+            override fun onAudioSessionIdChanged(
+                eventTime: AnalyticsListener.EventTime,
+                audioSessionId: Int
+            ) {
+                if (audioSessionId != C.AUDIO_SESSION_ID_UNSET && audioSessionId != 0) {
+                    _audioSessionId.value = audioSessionId
+                    equalizerManager.initialize(audioSessionId)
+                }
+            }
+        })
 
         // Set up notification click to open NowPlaying
         val activityIntent = Intent(this, MainActivity::class.java).apply {
@@ -133,8 +150,17 @@ class PlaybackService : MediaSessionService() {
                     args: Bundle
                 ): ListenableFuture<SessionResult> {
                     if (customCommand.customAction == COMMAND_STOP_SERVICE) {
+                        // Mark this as a user-initiated stop so PlaybackController does
+                        // not auto-reload the queue into a fresh service on reconnect
+                        // (which would resurrect a paused notification the user just
+                        // dismissed). The controller clears this flag when it sees it.
+                        getSharedPreferences("playback_snapshot", Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("user_stopped", true)
+                            .commit()
                         session.player.stop()
                         session.player.clearMediaItems()
+                        stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf()
                     }
                     return Futures.immediateFuture(
@@ -161,8 +187,12 @@ class PlaybackService : MediaSessionService() {
         bluetoothReceiver = BluetoothReceiver {
             serviceScope.launch {
                 val prefs = dataStore.data.first()
-                val autoResume = prefs[AUTO_RESUME_KEY] ?: true
-                if (autoResume) {
+                // Same key the Settings toggle writes (default off). The old code read a
+                // different key that nobody wrote, so the toggle did nothing.
+                val autoResume = prefs[SettingsViewModel.AUTO_RESUME_HEADSET_KEY] ?: false
+                // Never auto-resume a track the user deliberately paused.
+                val userPaused = prefs[PlaybackController.USER_PAUSED_KEY] == true
+                if (autoResume && !userPaused) {
                     val p = mediaSession?.player
                     if (p != null && p.mediaItemCount > 0 && !p.isPlaying) {
                         p.play()
@@ -175,10 +205,11 @@ class PlaybackService : MediaSessionService() {
                 addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
                 addAction(AudioManager.ACTION_HEADSET_PLUG)
             }
-            // API 33+ requires explicit export flags for dynamically-registered receivers;
-            // without the flag the broadcasts can be silently dropped by the system.
+            // ACTION_ACL_CONNECTED / ACTION_HEADSET_PLUG are OS-sent (protected) system
+            // broadcasts. On API 33+ a dynamically-registered receiver must be flagged
+            // RECEIVER_EXPORTED to receive them; RECEIVER_NOT_EXPORTED silently drops them.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(bluetoothReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                registerReceiver(bluetoothReceiver, filter, Context.RECEIVER_EXPORTED)
             } else {
                 registerReceiver(bluetoothReceiver, filter)
             }

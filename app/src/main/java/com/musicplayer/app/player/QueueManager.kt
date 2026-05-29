@@ -25,10 +25,27 @@ class QueueManager @Inject constructor() {
     @Volatile
     private var originalQueue: List<Song> = emptyList()
 
+    /** The pre-shuffle order, used to persist enough state to faithfully restore shuffle. */
+    val originalOrder: List<Song> get() = originalQueue
+
     fun setQueue(songs: List<Song>, startIndex: Int = 0) {
         originalQueue = songs
         _queue.value = songs
         _currentIndex.value = startIndex
+        updateCurrentSong()
+    }
+
+    /**
+     * Restore queue state from a persisted snapshot, preserving both the (possibly
+     * shuffled) playing order and the original order so toggling shuffle off still
+     * returns to the real order after a process restart.
+     */
+    fun restoreState(queue: List<Song>, original: List<Song>, startIndex: Int, shuffle: Boolean) {
+        if (queue.isEmpty()) return
+        _queue.value = queue
+        originalQueue = original.ifEmpty { queue }
+        _shuffleEnabled.value = shuffle
+        _currentIndex.value = startIndex.coerceIn(0, queue.size - 1)
         updateCurrentSong()
     }
 
@@ -86,9 +103,13 @@ class QueueManager @Inject constructor() {
 
     fun removeFromQueue(index: Int) {
         if (index in _queue.value.indices) {
+            val removed = _queue.value[index]
             val mutable = _queue.value.toMutableList()
             mutable.removeAt(index)
             _queue.value = mutable
+            // Also evict from the original order, otherwise toggling shuffle off would
+            // resurrect a song the user just deleted.
+            originalQueue = originalQueue.filterNot { it.id == removed.id }
 
             when {
                 mutable.isEmpty() -> {

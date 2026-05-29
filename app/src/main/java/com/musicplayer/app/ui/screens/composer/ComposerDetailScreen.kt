@@ -50,7 +50,7 @@ fun ComposerDetailScreen(
     viewModel: ComposerViewModel = hiltViewModel(),
     playlistViewModel: PlaylistViewModel = hiltViewModel()
 ) {
-    viewModel.loadComposer(composerName)
+    LaunchedEffect(composerName) { viewModel.loadComposer(composerName) }
     val songs by viewModel.composerSongs.collectAsState()
     val sortOption by viewModel.sortOption.collectAsState()
     val playbackState by viewModel.playbackController.playbackState.collectAsState()

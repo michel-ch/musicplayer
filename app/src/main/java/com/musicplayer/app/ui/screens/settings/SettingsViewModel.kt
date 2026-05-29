@@ -30,7 +30,7 @@ class SettingsViewModel @Inject constructor(
         private val SHOW_ALBUM_ART_KEY = booleanPreferencesKey("show_album_art")
         private val HIGH_RES_ART_KEY = booleanPreferencesKey("high_res_art")
         private val SHOW_WAVEFORM_KEY = booleanPreferencesKey("show_waveform")
-        private val AUTO_RESUME_HEADSET_KEY = booleanPreferencesKey("auto_resume_headset")
+        val AUTO_RESUME_HEADSET_KEY = booleanPreferencesKey("auto_resume_headset")
         val RESUME_ON_APP_FOREGROUND_KEY = booleanPreferencesKey("resume_on_app_foreground")
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
         private val SHOW_LOCK_SCREEN_CONTROLS_KEY = booleanPreferencesKey("show_lock_screen_controls")

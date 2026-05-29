@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import org.json.JSONArray
 import org.json.JSONObject
@@ -47,6 +48,7 @@ class PlaybackController @Inject constructor(
     private val musicRepository: MusicRepository
 ) {
     private var mediaController: MediaController? = null
+    private var playerListener: Player.Listener? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val snapshotPrefs: SharedPreferences =
         context.getSharedPreferences("playback_snapshot", Context.MODE_PRIVATE)
@@ -56,7 +58,7 @@ class PlaybackController @Inject constructor(
 
     private val _repeatMode = MutableStateFlow(RepeatMode.OFF)
 
-    private data class PendingRestore(val queue: List<Song>, val index: Int)
+    private data class PendingRestore(val queue: List<Song>, val index: Int, val position: Long)
     private val pendingRestore = AtomicReference<PendingRestore?>(null)
 
     @Volatile
@@ -68,12 +70,24 @@ class PlaybackController @Inject constructor(
     companion object {
         private const val TAG = "PlaybackController"
         private val LAST_QUEUE_JSON = stringPreferencesKey("last_queue_json")
+        private val LAST_ORIGINAL_JSON = stringPreferencesKey("last_original_json")
         private val LAST_QUEUE_INDEX = intPreferencesKey("last_queue_index")
         private val LAST_SOURCE_ROUTE = stringPreferencesKey("last_source_route")
+        private val LAST_SHUFFLE = booleanPreferencesKey("last_shuffle")
+        private val LAST_REPEAT = intPreferencesKey("last_repeat")
+        private val LAST_POSITION = longPreferencesKey("last_position")
         val CONTINUE_TO_NEXT_FOLDER = booleanPreferencesKey("continue_to_next_folder")
+        // Read by PlaybackService (BT auto-resume) and MainActivity (foreground resume)
+        // to avoid resuming a track the user deliberately paused.
+        val USER_PAUSED_KEY = booleanPreferencesKey("user_paused")
         private const val SNAPSHOT_QUEUE_JSON = "queue_json"
+        private const val SNAPSHOT_ORIGINAL_JSON = "original_json"
         private const val SNAPSHOT_QUEUE_INDEX = "queue_index"
         private const val SNAPSHOT_SOURCE_ROUTE = "source_route"
+        private const val SNAPSHOT_SHUFFLE = "shuffle"
+        private const val SNAPSHOT_REPEAT = "repeat"
+        private const val SNAPSHOT_POSITION = "position"
+        private const val SNAPSHOT_USER_STOPPED = "user_stopped"
     }
 
     init {
@@ -92,31 +106,90 @@ class PlaybackController @Inject constructor(
             val savedIndex = snapshotPrefs.getInt(SNAPSHOT_QUEUE_INDEX, 0)
             val queueSongs = deserializeQueue(queueJson)
             if (queueSongs.isEmpty()) return
+            val originalSongs = snapshotPrefs.getString(SNAPSHOT_ORIGINAL_JSON, null)
+                ?.let { deserializeQueue(it) }?.takeIf { it.isNotEmpty() } ?: queueSongs
+            val shuffle = snapshotPrefs.getBoolean(SNAPSHOT_SHUFFLE, false)
+            val repeat = repeatModeFromOrdinal(snapshotPrefs.getInt(SNAPSHOT_REPEAT, 0))
+            val position = snapshotPrefs.getLong(SNAPSHOT_POSITION, 0L)
             val startIndex = savedIndex.coerceIn(0, queueSongs.size - 1)
             val song = queueSongs[startIndex]
-            _playbackState.value = PlaybackState(
-                currentSong = song,
-                duration = song.duration
-            )
-            queueManager.setQueue(queueSongs, startIndex)
+            _repeatMode.value = repeat
+            // Merge into existing state rather than replacing it, so live fields
+            // (isPlaying) survive a runtime reconnect and shuffle/repeat aren't reset.
+            _playbackState.update {
+                it.copy(
+                    currentSong = song,
+                    duration = song.duration,
+                    shuffleEnabled = shuffle,
+                    repeatMode = repeat,
+                    currentPosition = position
+                )
+            }
+            queueManager.restoreState(queueSongs, originalSongs, startIndex, shuffle)
             _sourceRoute.value = snapshotPrefs.getString(SNAPSHOT_SOURCE_ROUTE, null)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to restore snapshot", e)
         }
     }
 
-    private fun writeSnapshot(queue: List<Song>, currentIndex: Int, route: String?) {
+    private fun writeSnapshot(
+        queue: List<Song>,
+        original: List<Song>,
+        currentIndex: Int,
+        route: String?,
+        shuffle: Boolean,
+        repeat: RepeatMode,
+        position: Long
+    ) {
         snapshotPrefs.edit().apply {
             if (queue.isNotEmpty()) {
                 putString(SNAPSHOT_QUEUE_JSON, serializeQueue(queue))
+                putString(SNAPSHOT_ORIGINAL_JSON, serializeQueue(original.ifEmpty { queue }))
                 putInt(SNAPSHOT_QUEUE_INDEX, currentIndex)
+                putBoolean(SNAPSHOT_SHUFFLE, shuffle)
+                putInt(SNAPSHOT_REPEAT, repeat.ordinal)
+                putLong(SNAPSHOT_POSITION, position)
             } else {
                 remove(SNAPSHOT_QUEUE_JSON)
+                remove(SNAPSHOT_ORIGINAL_JSON)
                 remove(SNAPSHOT_QUEUE_INDEX)
+                remove(SNAPSHOT_SHUFFLE)
+                remove(SNAPSHOT_REPEAT)
+                remove(SNAPSHOT_POSITION)
             }
             if (route != null) putString(SNAPSHOT_SOURCE_ROUTE, route)
             else remove(SNAPSHOT_SOURCE_ROUTE)
         }.apply()
+    }
+
+    private fun clearPersistedState() {
+        snapshotPrefs.edit().clear().apply()
+        scope.launch(Dispatchers.IO) {
+            dataStore.edit { prefs ->
+                prefs.remove(LAST_QUEUE_JSON)
+                prefs.remove(LAST_ORIGINAL_JSON)
+                prefs.remove(LAST_QUEUE_INDEX)
+                prefs.remove(LAST_SOURCE_ROUTE)
+                prefs.remove(LAST_SHUFFLE)
+                prefs.remove(LAST_REPEAT)
+                prefs.remove(LAST_POSITION)
+            }
+        }
+    }
+
+    private fun repeatModeFromOrdinal(ordinal: Int): RepeatMode =
+        RepeatMode.values().getOrElse(ordinal) { RepeatMode.OFF }
+
+    private fun RepeatMode.toPlayerRepeatMode(): Int = when (this) {
+        RepeatMode.OFF -> Player.REPEAT_MODE_OFF
+        RepeatMode.ONE -> Player.REPEAT_MODE_ONE
+        RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+    }
+
+    private fun setUserPaused(value: Boolean) {
+        scope.launch(Dispatchers.IO) {
+            dataStore.edit { it[USER_PAUSED_KEY] = value }
+        }
     }
 
     private fun restoreLastSong() {
@@ -129,13 +202,25 @@ class PlaybackController @Inject constructor(
             val queueSongs = deserializeQueue(queueJson)
             if (queueSongs.isEmpty()) return@launch
 
+            val originalSongs = prefs[LAST_ORIGINAL_JSON]?.let { deserializeQueue(it) }
+                ?.takeIf { it.isNotEmpty() } ?: queueSongs
+            val shuffle = prefs[LAST_SHUFFLE] ?: false
+            val repeat = repeatModeFromOrdinal(prefs[LAST_REPEAT] ?: 0)
+            val position = prefs[LAST_POSITION] ?: 0L
             val startIndex = savedIndex.coerceIn(0, queueSongs.size - 1)
             val currentSong = queueSongs[startIndex]
 
+            _repeatMode.value = repeat
             _playbackState.update {
-                it.copy(currentSong = currentSong, duration = currentSong.duration)
+                it.copy(
+                    currentSong = currentSong,
+                    duration = currentSong.duration,
+                    shuffleEnabled = shuffle,
+                    repeatMode = repeat,
+                    currentPosition = position
+                )
             }
-            queueManager.setQueue(queueSongs, startIndex)
+            queueManager.restoreState(queueSongs, originalSongs, startIndex, shuffle)
 
             val controller = mediaController
             if (controller != null) {
@@ -159,13 +244,14 @@ class PlaybackController @Inject constructor(
                             }
                         }
                     } else {
-                        // Fresh service — load the saved queue
+                        // Fresh service — load the saved queue at the saved position
                         controller.setMediaItems(
                             queueSongs.map { it.toMediaItem() },
                             startIndex,
-                            0
+                            position
                         )
                         controller.prepare()
+                        controller.repeatMode = repeat.toPlayerRepeatMode()
                         if (pendingPlay) {
                             controller.play()
                             pendingPlay = false
@@ -173,7 +259,7 @@ class PlaybackController @Inject constructor(
                     }
                 }
             } else {
-                pendingRestore.set(PendingRestore(queueSongs, startIndex))
+                pendingRestore.set(PendingRestore(queueSongs, startIndex, position))
             }
         }
     }
@@ -182,22 +268,31 @@ class PlaybackController @Inject constructor(
         // Capture queue state synchronously on the calling (Main) thread to avoid a race
         // where QueueManager.clear() empties the queue before the IO coroutine reads it.
         val queue = queueManager.queue.value
+        val original = queueManager.originalOrder
         val currentIndex = queueManager.currentIndex.value
         val route = _sourceRoute.value
+        val shuffle = queueManager.shuffleEnabled.value
+        val repeat = _repeatMode.value
+        val position = mediaController?.currentPosition?.coerceAtLeast(0)
+            ?: _playbackState.value.currentPosition
         // Never erase a valid snapshot with an empty one. A BT-triggered service
         // teardown can clear the queue between an event firing and this call —
         // writing emptyList() would `remove()` the SharedPreferences keys and
         // leave restoreSnapshotSync() with nothing to restore on next launch.
-        // Intentional clears (last-song deletion) call writeSnapshot directly.
+        // Intentional clears (last-song deletion) call clearPersistedState directly.
         if (queue.isEmpty()) {
             Log.w(TAG, "saveLastSong with empty queue; refusing destructive write")
             return
         }
-        writeSnapshot(queue, currentIndex, route)
+        writeSnapshot(queue, original, currentIndex, route, shuffle, repeat, position)
         scope.launch(Dispatchers.IO) {
             dataStore.edit { prefs ->
                 prefs[LAST_QUEUE_JSON] = serializeQueue(queue)
+                prefs[LAST_ORIGINAL_JSON] = serializeQueue(original.ifEmpty { queue })
                 prefs[LAST_QUEUE_INDEX] = currentIndex
+                prefs[LAST_SHUFFLE] = shuffle
+                prefs[LAST_REPEAT] = repeat.ordinal
+                prefs[LAST_POSITION] = position
                 if (route != null) prefs[LAST_SOURCE_ROUTE] = route else prefs.remove(LAST_SOURCE_ROUTE)
             }
         }
@@ -214,6 +309,7 @@ class PlaybackController @Inject constructor(
             obj.put("albumId", song.albumId)
             obj.put("duration", song.duration)
             obj.put("trackNumber", song.trackNumber)
+            obj.put("discNumber", song.discNumber)
             obj.put("year", song.year)
             obj.put("genre", song.genre)
             obj.put("folderPath", song.folderPath)
@@ -225,6 +321,7 @@ class PlaybackController @Inject constructor(
             obj.put("dateModified", song.dateModified)
             obj.put("uri", song.uri.toString())
             obj.put("albumArtUri", song.albumArtUri?.toString() ?: "")
+            obj.put("composer", song.composer)
             array.put(obj)
         }
         return array.toString()
@@ -243,6 +340,7 @@ class PlaybackController @Inject constructor(
                     albumId = obj.optLong("albumId", 0L),
                     duration = obj.optLong("duration", 0L),
                     trackNumber = obj.optInt("trackNumber", 0),
+                    discNumber = obj.optInt("discNumber", 1),
                     year = obj.optInt("year", 0),
                     genre = obj.optString("genre", ""),
                     folderPath = obj.optString("folderPath", ""),
@@ -253,7 +351,8 @@ class PlaybackController @Inject constructor(
                     dateAdded = obj.optLong("dateAdded", 0L),
                     dateModified = obj.optLong("dateModified", 0L),
                     uri = Uri.parse(obj.getString("uri")),
-                    albumArtUri = obj.optString("albumArtUri", "").takeIf { it.isNotEmpty() }?.let { Uri.parse(it) }
+                    albumArtUri = obj.optString("albumArtUri", "").takeIf { it.isNotEmpty() }?.let { Uri.parse(it) },
+                    composer = obj.optString("composer", "")
                 )
             }
         } catch (e: Exception) {
@@ -299,6 +398,21 @@ class PlaybackController @Inject constructor(
             }
             mediaController = controller
             setupPlayerListener()
+            controller.repeatMode = _repeatMode.value.toPlayerRepeatMode()
+
+            // A user-initiated Close (notification) sets this flag in the shared snapshot
+            // file. Honour it on reconnect by clearing all state instead of reloading the
+            // queue into the fresh service (which would resurrect a dismissed notification).
+            if (snapshotPrefs.getBoolean(SNAPSHOT_USER_STOPPED, false)) {
+                snapshotPrefs.edit().remove(SNAPSHOT_USER_STOPPED).apply()
+                queueManager.clear()
+                _playbackState.value = PlaybackState()
+                _sourceRoute.value = null
+                pendingRestore.set(null)
+                pendingPlay = false
+                clearPersistedState()
+                return@addListener
+            }
 
             val restored = pendingRestore.getAndSet(null)
             if (restored != null) {
@@ -307,7 +421,7 @@ class PlaybackController @Inject constructor(
                 // restoreLastSong() finished before connectToService() — apply the queue now
                 mediaController?.apply {
                     if (mediaItemCount == 0) {
-                        setMediaItems(songs.map { it.toMediaItem() }, restoreIndex, 0)
+                        setMediaItems(songs.map { it.toMediaItem() }, restoreIndex, restored.position)
                         prepare()
                         if (pendingPlay) { play(); pendingPlay = false }
                     } else {
@@ -345,7 +459,8 @@ class PlaybackController @Inject constructor(
                     mediaController?.apply {
                         if (mediaItemCount == 0) {
                             val idx = queueManager.currentIndex.value.coerceAtLeast(0)
-                            setMediaItems(queue.map { it.toMediaItem() }, idx, 0)
+                            val startPos = _playbackState.value.currentPosition.coerceAtLeast(0)
+                            setMediaItems(queue.map { it.toMediaItem() }, idx, startPos)
                             prepare()
                             if (pendingPlay) { play(); pendingPlay = false }
                             // Ensure UI state is preserved after reloading into a fresh service
@@ -385,13 +500,25 @@ class PlaybackController @Inject constructor(
     }
 
     private fun setupPlayerListener() {
-        mediaController?.addListener(object : Player.Listener {
+        val controller = mediaController ?: return
+        val listener = playerListener ?: createPlayerListener().also { playerListener = it }
+        // Reconnects build a new controller; remove-before-add guards against stacking
+        // the same listener, which would multiply every event and snapshot write.
+        controller.removeListener(listener)
+        controller.addListener(listener)
+    }
+
+    private fun createPlayerListener(): Player.Listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 _playbackState.update { it.copy(isPlaying = isPlaying) }
-                // Persist a fresh snapshot whenever we pause so a process kill while
-                // paused (e.g. after a BT toggle / audio focus loss) still recovers
-                // the queue on relaunch.
-                if (!isPlaying) {
+                if (isPlaying) {
+                    // Playback is running again (by any means) — it is no longer
+                    // "user paused", so headset/foreground auto-resume may act later.
+                    setUserPaused(false)
+                } else {
+                    // Persist a fresh snapshot whenever we pause so a process kill while
+                    // paused (e.g. after a BT toggle / audio focus loss) still recovers
+                    // the queue on relaunch.
                     _playbackState.value.currentSong?.let { saveLastSong(it) }
                 }
             }
@@ -488,7 +615,6 @@ class PlaybackController @Inject constructor(
                     }
                 }
             }
-        })
     }
 
     private fun handlePlaybackEnded() {
@@ -597,6 +723,7 @@ class PlaybackController @Inject constructor(
     }
 
     fun pause() {
+        setUserPaused(true)
         mediaController?.pause()
     }
 
@@ -604,6 +731,7 @@ class PlaybackController @Inject constructor(
         val controller = mediaController
         if (controller != null) {
             if (controller.isPlaying) {
+                setUserPaused(true)
                 controller.pause()
             } else {
                 // If player has no media items but we have a restored queue, re-prepare it
@@ -745,14 +873,7 @@ class PlaybackController @Inject constructor(
             _playbackState.update {
                 it.copy(currentSong = null, isPlaying = false, currentPosition = 0, duration = 0)
             }
-            writeSnapshot(emptyList(), -1, null)
-            scope.launch(Dispatchers.IO) {
-                dataStore.edit { prefs ->
-                    prefs.remove(LAST_QUEUE_JSON)
-                    prefs.remove(LAST_QUEUE_INDEX)
-                    prefs.remove(LAST_SOURCE_ROUTE)
-                }
-            }
+            clearPersistedState()
             return
         }
 

@@ -14,8 +14,8 @@ android {
         applicationId = "com.musicplayer.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "1.1.11"
+        versionCode = 9
+        versionName = "1.1.12"
     }
 
     signingConfigs {

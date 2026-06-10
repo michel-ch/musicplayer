@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -156,7 +157,10 @@ fun NowPlayingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                        .pointerInput(Unit) {
+                        // Key on the skip-availability so the gesture detector restarts
+                        // and re-captures current values instead of clamping against a
+                        // stale canSkipNext/canSkipPrev from first composition.
+                        .pointerInput(canSkipNext, canSkipPrev) {
                             val width = size.width.toFloat()
 
                             detectDragGestures(
@@ -345,6 +349,12 @@ fun NowPlayingScreen(
                 // Seek Bar (outside swipe zone)
                 var isSeeking by remember { mutableStateOf(false) }
                 var seekPosition by remember { mutableFloatStateOf(0f) }
+                // Drop any in-flight seek latch when the track changes, so a drag begun
+                // on the previous song isn't applied (at its fraction) to the next one.
+                LaunchedEffect(song.id) {
+                    isSeeking = false
+                    seekPosition = 0f
+                }
 
                 Slider(
                     value = if (isSeeking) seekPosition else playbackState.progress,

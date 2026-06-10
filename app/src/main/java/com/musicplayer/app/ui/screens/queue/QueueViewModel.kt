@@ -24,6 +24,6 @@ class QueueViewModel @Inject constructor(
     }
 
     fun clearQueue() {
-        queueManager.clear()
+        playbackController.clearQueue()
     }
 }

@@ -95,6 +95,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleIntent(intent)
     }
 
@@ -136,6 +137,9 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == PlaybackService.ACTION_OPEN_NOW_PLAYING) {
             _navigateToNowPlaying.value = true
+            // Clear the action so a config-change recreation (which re-delivers the same
+            // intent via getIntent()) doesn't re-open NowPlaying on every rotation.
+            intent.action = null
         }
     }
 

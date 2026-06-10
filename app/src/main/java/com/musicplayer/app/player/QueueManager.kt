@@ -32,6 +32,9 @@ class QueueManager @Inject constructor() {
         originalQueue = songs
         _queue.value = songs
         _currentIndex.value = startIndex
+        // A new queue always starts in natural order; clear any leftover shuffle flag
+        // so it doesn't desync from the (unshuffled) order just loaded.
+        _shuffleEnabled.value = false
         updateCurrentSong()
     }
 

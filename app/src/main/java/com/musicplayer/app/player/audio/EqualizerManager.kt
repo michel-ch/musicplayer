@@ -84,7 +84,7 @@ class EqualizerManager @Inject constructor(
     fun initialize(audioSessionId: Int) {
         release()
         try {
-            equalizer = Equalizer(0, audioSessionId).apply {
+            val eq = Equalizer(0, audioSessionId).apply {
                 val numBands = numberOfBands.toInt()
                 val range = bandLevelRange
                 _minBandLevel.value = range[0].toInt()
@@ -97,13 +97,20 @@ class EqualizerManager @Inject constructor(
                     getPresetName(it.toShort())
                 }
                 _presetNames.value = presets
-
-                scope.launch { restoreSettings(this@apply) }
             }
+            equalizer = eq
             bassBoost = BassBoost(0, audioSessionId).apply {
                 scope.launch { restoreBassBoost(this@apply) }
             }
-            scope.launch { restoreExtendedSettings() }
+            // Restore base bands + preamp/tone scalars, THEN apply the combined effect
+            // to the fresh hardware. Sequencing matters (bands before offsets), and this
+            // re-applies preamp/tone after an audio-session-id change instead of silently
+            // dropping them — they previously only ever lived on the released Equalizer.
+            scope.launch {
+                restoreSettings(eq)
+                restoreExtendedSettings()
+                applyEffects()
+            }
         } catch (_: Exception) {
             // EQ not supported on some devices
         }
@@ -160,13 +167,13 @@ class EqualizerManager @Inject constructor(
     }
 
     fun setBandLevel(band: Int, level: Int) {
-        equalizer?.setBandLevel(band.toShort(), level.toShort())
         _bandLevels.update { current ->
             if (band < current.size) {
                 current.toMutableList().also { it[band] = level }
             } else current
         }
         _currentPreset.value = -1
+        applyEffects()
         scope.launch {
             dataStore.edit { it[EQ_BANDS_KEY] = _bandLevels.value.joinToString(",") }
         }
@@ -176,10 +183,12 @@ class EqualizerManager @Inject constructor(
         equalizer?.let { eq ->
             eq.usePreset(presetIndex.toShort())
             _currentPreset.value = presetIndex
+            // Read the preset's band levels as the new base, then re-layer preamp/tone.
             val levels = (0 until eq.numberOfBands.toInt()).map {
                 eq.getBandLevel(it.toShort()).toInt()
             }
             _bandLevels.value = levels
+            applyEffects()
             scope.launch {
                 dataStore.edit {
                     it[EQ_PRESET_KEY] = presetIndex
@@ -203,31 +212,15 @@ class EqualizerManager @Inject constructor(
 
     fun setPreampLevel(level: Float) {
         _preampLevel.value = level
-        // Apply preamp as uniform band offset
-        applyPreampToAllBands(level)
+        applyEffects()
         scope.launch {
             dataStore.edit { it[PREAMP_KEY] = level }
         }
     }
 
-    private fun applyPreampToAllBands(preampDb: Float) {
-        equalizer?.let { eq ->
-            val numBands = eq.numberOfBands.toInt()
-            val current = _bandLevels.value.toMutableList()
-            val preampOffset = (preampDb * 100).toInt() // Convert dB to millibels
-            for (i in 0 until numBands) {
-                if (i < current.size) {
-                    val newLevel = (current[i] + preampOffset)
-                        .coerceIn(_minBandLevel.value, _maxBandLevel.value)
-                    eq.setBandLevel(i.toShort(), newLevel.toShort())
-                }
-            }
-        }
-    }
-
     fun setToneBass(percent: Float) {
         _toneBass.value = percent
-        applyTone()
+        applyEffects()
         scope.launch {
             dataStore.edit { it[TONE_BASS_KEY] = percent }
         }
@@ -235,25 +228,34 @@ class EqualizerManager @Inject constructor(
 
     fun setToneTreble(percent: Float) {
         _toneTreble.value = percent
-        applyTone()
+        applyEffects()
         scope.launch {
             dataStore.edit { it[TONE_TREBLE_KEY] = percent }
         }
     }
 
-    private fun applyTone() {
-        equalizer?.let { eq ->
-            val numBands = eq.numberOfBands.toInt()
-            if (numBands < 2) return
-            val bassOffset = ((_toneBass.value - 50f) / 50f * _maxBandLevel.value).toInt()
-            val trebleOffset = ((_toneTreble.value - 50f) / 50f * _maxBandLevel.value).toInt()
-            val midPoint = numBands / 2
-            for (i in 0 until numBands) {
-                val offset = if (i < midPoint) bassOffset else trebleOffset
-                val baseLevel = _bandLevels.value.getOrElse(i) { 0 }
-                val newLevel = (baseLevel + offset).coerceIn(_minBandLevel.value, _maxBandLevel.value)
-                eq.setBandLevel(i.toShort(), newLevel.toShort())
-            }
+    /**
+     * Apply the full effect chain to the hardware in one pass: each band =
+     * base level (`_bandLevels`) + preamp offset + tone offset, clamped to range.
+     * Previously preamp and tone were applied independently and each read the base
+     * levels, so whichever ran last overwrote the other on the hardware. Computing the
+     * combined value here makes them additive and idempotent, and lets `initialize`
+     * re-apply them after a session change.
+     */
+    private fun applyEffects() {
+        val eq = equalizer ?: return
+        val numBands = eq.numberOfBands.toInt()
+        if (numBands == 0) return
+        val preampOffset = (_preampLevel.value * 100).toInt() // dB -> millibels
+        val bassOffset = ((_toneBass.value - 50f) / 50f * _maxBandLevel.value).toInt()
+        val trebleOffset = ((_toneTreble.value - 50f) / 50f * _maxBandLevel.value).toInt()
+        val midPoint = numBands / 2
+        for (i in 0 until numBands) {
+            val base = _bandLevels.value.getOrElse(i) { 0 }
+            val tone = if (numBands >= 2) (if (i < midPoint) bassOffset else trebleOffset) else 0
+            val level = (base + preampOffset + tone)
+                .coerceIn(_minBandLevel.value, _maxBandLevel.value)
+            eq.setBandLevel(i.toShort(), level.toShort())
         }
     }
 

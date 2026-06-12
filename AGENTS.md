@@ -135,6 +135,16 @@ For code changes, run and fix failures (skip checks that genuinely don't exist h
 Docs-only or diagram-only changes don't need a build. If you changed a flux, re-validate
 `docs/architecture.drawio` parses as XML.
 
+## Releases & versioning
+
+- **Semantic versioning.** `versionName` and `versionCode` are in `app/build.gradle.kts`; bump
+  both in a `chore(release): bump to vX.Y.Z` commit (the established history pattern).
+- **Tag + changelog + release.** Tag the release commit `vX.Y.Z`, add the matching section to
+  [`CHANGELOG.md`](CHANGELOG.md) (Keep a Changelog), and publish a GitHub release for the tag.
+  Keep the changelog entry and the release notes in sync.
+- **Signing.** The release `signingConfig` deliberately uses the debug keystore for sideloading —
+  do not add real keystore credentials to the repo when cutting a release.
+
 ## Git & commits (absolute rules)
 
 - **Conventional Commits.** `type(scope): subject` — lowercase type from

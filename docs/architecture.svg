@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="680" viewBox="20 0 1180 680" font-family="Helvetica,Arial,sans-serif">
+<rect x="20" y="0" width="1180" height="680" fill="#ffffff"/>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#000000"/></marker></defs>
+<rect x="200.0" y="70.0" width="190.0" height="170.0" rx="8" fill="#EAF2FD" stroke="#6C8EBF" stroke-width="1.5"/>
+<text x="295.0" y="88.3" font-size="13" fill="#6C8EBF" text-anchor="middle" font-weight="bold">Presentation</text>
+<rect x="440.0" y="70.0" width="210.0" height="590.0" rx="8" fill="#FFF7E6" stroke="#D79B00" stroke-width="1.5"/>
+<text x="545.0" y="88.3" font-size="13" fill="#9A5B00" text-anchor="middle" font-weight="bold">App Core - Hilt singletons</text>
+<rect x="700.0" y="70.0" width="190.0" height="210.0" rx="8" fill="#EAF7E6" stroke="#82B366" stroke-width="1.5"/>
+<text x="795.0" y="88.3" font-size="13" fill="#82B366" text-anchor="middle" font-weight="bold">Local Storage</text>
+<rect x="700.0" y="320.0" width="190.0" height="160.0" rx="8" fill="#FFF7E6" stroke="#D79B00" stroke-width="1.5"/>
+<text x="795.0" y="338.3" font-size="13" fill="#9A5B00" text-anchor="middle" font-weight="bold">Foreground Service</text>
+<rect x="940.0" y="70.0" width="210.0" height="410.0" rx="8" fill="#EAF2FD" stroke="#6C8EBF" stroke-width="1.5"/>
+<text x="1045.0" y="88.3" font-size="13" fill="#6C8EBF" text-anchor="middle" font-weight="bold">Android System</text>
+<rect x="50.0" y="110.0" width="110.0" height="40.0" rx="14" fill="#F5F5F5" stroke="#666666" stroke-width="1.5"/>
+<text x="105.0" y="133.7" font-size="11" fill="#000000" text-anchor="middle">User</text>
+<rect x="50.0" y="390.0" width="120.0" height="40.0" rx="14" fill="#F5F5F5" stroke="#666666" stroke-width="1.5"/>
+<text x="110.0" y="406.7" font-size="11" fill="#000000" text-anchor="middle">Bluetooth /</text>
+<text x="110.0" y="420.7" font-size="11" fill="#000000" text-anchor="middle">Headset</text>
+<rect x="212.0" y="110.0" width="166.0" height="44.0" rx="8" fill="#DAE8FC" stroke="#6C8EBF" stroke-width="1.5"/>
+<text x="295.0" y="135.3" font-size="10" fill="#000000" text-anchor="middle">Compose Screens + ViewModels</text>
+<rect x="212.0" y="180.0" width="166.0" height="40.0" rx="8" fill="#DAE8FC" stroke="#6C8EBF" stroke-width="1.5"/>
+<text x="295.0" y="203.3" font-size="10" fill="#000000" text-anchor="middle">MiniPlayer / NowPlaying</text>
+<rect x="452.0" y="110.0" width="186.0" height="40.0" rx="8" fill="#FFE6CC" stroke="#D79B00" stroke-width="1.5"/>
+<text x="545.0" y="133.3" font-size="10" fill="#000000" text-anchor="middle">PlaybackController</text>
+<rect x="452.0" y="166.0" width="186.0" height="34.0" rx="8" fill="#FFE6CC" stroke="#D79B00" stroke-width="1.5"/>
+<text x="545.0" y="186.3" font-size="10" fill="#000000" text-anchor="middle">QueueManager</text>
+<rect x="452.0" y="290.0" width="186.0" height="34.0" rx="8" fill="#FFE6CC" stroke="#D79B00" stroke-width="1.5"/>
+<text x="545.0" y="310.3" font-size="10" fill="#000000" text-anchor="middle">EqualizerManager</text>
+<rect x="452.0" y="346.0" width="186.0" height="34.0" rx="8" fill="#FFE6CC" stroke="#D79B00" stroke-width="1.5"/>
+<text x="545.0" y="366.3" font-size="10" fill="#000000" text-anchor="middle">SongDeletionHandler</text>
+<rect x="452.0" y="436.0" width="186.0" height="40.0" rx="8" fill="#FFE6CC" stroke="#D79B00" stroke-width="1.5"/>
+<text x="545.0" y="459.3" font-size="10" fill="#000000" text-anchor="middle">MusicRepositoryImpl</text>
+<rect x="452.0" y="500.0" width="186.0" height="34.0" rx="8" fill="#FFE6CC" stroke="#D79B00" stroke-width="1.5"/>
+<text x="545.0" y="520.3" font-size="10" fill="#000000" text-anchor="middle">PlaylistRepositoryImpl</text>
+<rect x="452.0" y="560.0" width="186.0" height="34.0" rx="8" fill="#FFE6CC" stroke="#D79B00" stroke-width="1.5"/>
+<text x="545.0" y="580.3" font-size="10" fill="#000000" text-anchor="middle">MediaScanner</text>
+<path d="M712.0,117.0 a83.0,7 0 0,1 166.0,0 l0,30.0 a83.0,7 0 0,1 -166.0,0 Z" fill="#D5E8D4" stroke="#82B366" stroke-width="1.5"/>
+<path d="M712.0,117.0 a83.0,7 0 0,0 166.0,0" fill="none" stroke="#82B366" stroke-width="1.5"/>
+<text x="795.0" y="138.8" font-size="10" fill="#000000" text-anchor="middle">Room music_player.db</text>
+<path d="M712.0,179.0 a83.0,7 0 0,1 166.0,0 l0,30.0 a83.0,7 0 0,1 -166.0,0 Z" fill="#D5E8D4" stroke="#82B366" stroke-width="1.5"/>
+<path d="M712.0,179.0 a83.0,7 0 0,0 166.0,0" fill="none" stroke="#82B366" stroke-width="1.5"/>
+<text x="795.0" y="200.8" font-size="10" fill="#000000" text-anchor="middle">DataStore (Preferences)</text>
+<rect x="712.0" y="232.0" width="166.0" height="38.0" rx="8" fill="#D5E8D4" stroke="#82B366" stroke-width="1.5"/>
+<text x="795.0" y="248.0" font-size="9" fill="#000000" text-anchor="middle">playback_snapshot</text>
+<text x="795.0" y="260.0" font-size="9" fill="#000000" text-anchor="middle">(SharedPreferences)</text>
+<rect x="712.0" y="356.0" width="166.0" height="44.0" rx="8" fill="#FFE6CC" stroke="#D79B00" stroke-width="1.5"/>
+<text x="795.0" y="374.8" font-size="10" fill="#000000" text-anchor="middle">PlaybackService +</text>
+<text x="795.0" y="387.8" font-size="10" fill="#000000" text-anchor="middle">MediaSession</text>
+<rect x="712.0" y="420.0" width="166.0" height="40.0" rx="8" fill="#FFE6CC" stroke="#D79B00" stroke-width="1.5"/>
+<text x="795.0" y="443.3" font-size="10" fill="#000000" text-anchor="middle">ExoPlayer</text>
+<rect x="952.0" y="110.0" width="180.0" height="40.0" rx="8" fill="#DAE8FC" stroke="#6C8EBF" stroke-width="1.5"/>
+<text x="1042.0" y="133.3" font-size="10" fill="#000000" text-anchor="middle">MediaStore</text>
+<rect x="952.0" y="166.0" width="180.0" height="34.0" rx="8" fill="#DAE8FC" stroke="#6C8EBF" stroke-width="1.5"/>
+<text x="1042.0" y="186.3" font-size="10" fill="#000000" text-anchor="middle">SAF / File System</text>
+<rect x="952.0" y="290.0" width="180.0" height="34.0" rx="8" fill="#DAE8FC" stroke="#6C8EBF" stroke-width="1.5"/>
+<text x="1042.0" y="310.3" font-size="10" fill="#000000" text-anchor="middle">AudioFX EQ + BassBoost</text>
+<rect x="952.0" y="346.0" width="180.0" height="40.0" rx="8" fill="#DAE8FC" stroke="#6C8EBF" stroke-width="1.5"/>
+<text x="1042.0" y="369.3" font-size="10" fill="#000000" text-anchor="middle">AudioManager + Notification</text>
+<path d="M160.0,130.0 L212.0,132.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M378.0,123.2 L452.0,122.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M545.0,150.0 L545.0,166.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M638.0,130.0 L675.0,130.0 L675.0,370.0 L712.0,369.2" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M795.0,400.0 L795.0,420.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M712.0,440.0 L688.0,440.0 L688.0,142.0 L638.0,142.0" fill="none" stroke="#000000" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<path d="M452.0,138.0 L378.0,200.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M378.0,208.0 L452.0,144.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M712.0,386.8 L662.0,385.0 L662.0,134.0 L638.0,134.0" fill="none" stroke="#000000" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<path d="M278.4,154.0 L295.0,456.0 L452.0,456.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M638.0,444.0 L712.0,145.2" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<path d="M545.0,476.0 L545.0,560.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M638.0,577.0 L915.0,577.0 L915.0,600.0 L1042.0,600.0 L1042.0,150.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M638.0,570.2 L925.0,570.0 L925.0,620.0 L1180.0,620.0 L1180.0,183.0 L1042.0,200.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M452.0,468.0 L305.0,456.0 L328.2,154.0" fill="none" stroke="#000000" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<path d="M311.6,154.0 L285.0,517.0 L452.0,517.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M638.0,517.0 L676.0,517.0 L676.0,132.0 L712.0,132.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<path d="M311.6,110.0 L295.0,58.0 L795.0,58.0 L795.0,172.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<path d="M638.0,138.0 L668.0,148.0 L668.0,251.0 L712.0,247.2" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M638.0,144.0 L682.0,146.0 L682.0,203.0 L712.0,202.8" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M712.0,254.8 L694.0,255.0 L694.0,126.0 L638.0,126.0" fill="none" stroke="#000000" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<path d="M878.0,378.0 L915.0,378.0 L915.0,366.0 L952.0,366.0" fill="none" stroke="#000000" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<path d="M712.0,378.0 L668.0,378.0 L668.0,307.0 L638.0,307.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M638.0,313.8 L918.0,307.0 L952.0,307.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M638.0,296.8 L690.0,295.0 L690.0,209.0 L712.0,209.4" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<path d="M170.0,410.0 L795.0,410.0 L795.0,410.0 L761.8,400.0" fill="none" stroke="#000000" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<path d="M1006.0,346.0 L1042.0,60.0 L660.0,60.0 L660.0,118.0 L638.0,118.0" fill="none" stroke="#000000" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<path d="M1060.0,346.0 L1052.0,48.0 L295.0,48.0 L278.4,110.0" fill="none" stroke="#000000" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<path d="M261.8,154.0 L275.0,363.0 L452.0,363.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M545.0,380.0 L545.0,436.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M638.0,468.0 L930.0,468.0 L930.0,130.0 L952.0,130.0" fill="none" stroke="#000000" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M160.0,142.0 L212.0,145.2" fill="none" stroke="#000000" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<rect x="165.7" y="124.5" width="40.7" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="186.0" y="134.0" font-size="9" fill="#000000" text-anchor="middle">F1 play</text>
+<rect x="407.1" y="116.1" width="15.9" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="415.0" y="125.6" font-size="9" fill="#000000" text-anchor="middle">F1</text>
+<rect x="537.0" y="151.5" width="15.9" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="545.0" y="161.0" font-size="9" fill="#000000" text-anchor="middle">F1</text>
+<rect x="610.1" y="243.5" width="129.8" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="675.0" y="253.0" font-size="9" fill="#000000" text-anchor="middle">F1/F3 MediaController IPC</text>
+<rect x="665.2" y="271.5" width="45.6" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="688.0" y="281.0" font-size="9" fill="#000000" text-anchor="middle">F2 state</text>
+<rect x="382.3" y="162.5" width="65.4" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="415.0" y="172.0" font-size="9" fill="#000000" text-anchor="middle">F2 StateFlow</text>
+<rect x="382.3" y="169.5" width="65.4" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="415.0" y="179.0" font-size="9" fill="#000000" text-anchor="middle">F3 transport</text>
+<rect x="614.5" y="266.0" width="95.1" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="662.0" y="275.5" font-size="9" fill="#000000" text-anchor="middle">F11 bind/reconnect</text>
+<rect x="245.9" y="376.9" width="90.2" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="291.0" y="386.4" font-size="9" fill="#000000" text-anchor="middle">F4 refreshLibrary</text>
+<rect x="637.4" y="288.1" width="75.3" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="675.0" y="297.6" font-size="9" fill="#000000" text-anchor="middle">F4 cache-first</text>
+<rect x="537.0" y="511.5" width="15.9" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="545.0" y="521.0" font-size="9" fill="#000000" text-anchor="middle">F5</text>
+<rect x="1019.2" y="582.0" width="45.6" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="1042.0" y="591.5" font-size="9" fill="#000000" text-anchor="middle">F5 query</text>
+<rect x="1154.2" y="613.5" width="35.7" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="1172.0" y="623.0" font-size="9" fill="#000000" text-anchor="middle">F5 SAF</text>
+<rect x="273.3" y="372.0" width="75.3" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="311.0" y="381.5" font-size="9" fill="#000000" text-anchor="middle">F6 projections</text>
+<rect x="234.7" y="412.3" width="114.9" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="292.2" y="421.8" font-size="9" fill="#000000" text-anchor="middle">F7 playlists/favorites</text>
+<rect x="532.1" y="51.5" width="85.2" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="574.7" y="61.0" font-size="9" fill="#000000" text-anchor="middle">F8 settings/sort</text>
+<rect x="622.9" y="199.3" width="90.2" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="668.0" y="208.8" font-size="9" fill="#000000" text-anchor="middle">F9 snapshot write</text>
+<rect x="654.2" y="161.0" width="55.5" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="682.0" y="170.5" font-size="9" fill="#000000" text-anchor="middle">F9 durable</text>
+<rect x="631.6" y="165.0" width="124.8" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="694.0" y="174.5" font-size="9" fill="#000000" text-anchor="middle">F10 cold-start / recency</text>
+<rect x="872.4" y="365.5" width="85.2" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="915.0" y="375.0" font-size="9" fill="#000000" text-anchor="middle">F12 notification</text>
+<rect x="637.8" y="343.0" width="60.5" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="668.0" y="352.5" font-size="9" fill="#000000" text-anchor="middle">F13 EQ init</text>
+<rect x="769.7" y="303.5" width="50.6" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="795.0" y="313.0" font-size="9" fill="#000000" text-anchor="middle">F13 apply</text>
+<rect x="659.8" y="260.5" width="60.5" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="690.0" y="270.0" font-size="9" fill="#000000" text-anchor="middle">F13 persist</text>
+<rect x="435.0" y="403.5" width="129.8" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="499.8" y="413.0" font-size="9" fill="#000000" text-anchor="middle">F14 ACL/headset broadcast</text>
+<rect x="912.5" y="53.5" width="85.2" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="955.1" y="63.0" font-size="9" fill="#000000" text-anchor="middle">F15 device check</text>
+<rect x="740.4" y="41.5" width="100.1" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="790.5" y="51.0" font-size="9" fill="#000000" text-anchor="middle">F16 open NowPlaying</text>
+<rect x="246.2" y="340.3" width="55.5" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="274.0" y="349.8" font-size="9" fill="#000000" text-anchor="middle">F17 delete</text>
+<rect x="880.0" y="427.5" width="100.1" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="930.0" y="437.0" font-size="9" fill="#000000" text-anchor="middle">F17 ContentResolver</text>
+<rect x="145.9" y="137.1" width="80.2" height="13" fill="#ffffff" opacity="0.92"/>
+<text x="186.0" y="146.6" font-size="9" fill="#000000" text-anchor="middle">F18 permissions</text>
+<text x="46.0" y="38.0" font-size="14" fill="#000000" font-weight="bold">Music Player - Architecture Flux Diagram (F1-F18, see docs/architecture-fluxes.md)</text>
+<rect x="200.0" y="500.0" width="430.0" height="90.0" fill="#FFFFFF" stroke="#bbbbbb" stroke-width="1" stroke-dasharray="4 3"/>
+<text x="206.0" y="514.0" font-size="10" fill="#000000">Legend</text>
+<text x="206.0" y="527.0" font-size="10" fill="#000000">Solid = primary runtime/data flux Dashed = state/ops/integration flux</text>
+<text x="206.0" y="540.0" font-size="10" fill="#000000">Blue = Presentation / Android System Orange = App Core / Service Green =</text>
+<text x="206.0" y="553.0" font-size="10" fill="#000000">Local Storage</text>
+<text x="206.0" y="566.0" font-size="10" fill="#000000">F# join key -&gt; docs/architecture-fluxes.md</text>
+</svg>

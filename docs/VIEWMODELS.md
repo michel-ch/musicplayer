@@ -44,7 +44,7 @@ class FooViewModel @Inject constructor(
 ### QueueViewModel (`ui/screens/queue/`)
 - **Injects**: QueueManager, PlaybackController
 - **State**: `queue`, `currentIndex` (from QueueManager)
-- **Methods**: `playAtIndex()`, `removeFromQueue()`, `clearQueue()`
+- **Methods**: `playAtIndex()`, `removeFromQueue()`, `clearQueue()` (routes through `PlaybackController.clearQueue()` so the player and `_playbackState` are cleared too — not just the QueueManager, which would leave a phantom song playing)
 
 ### SearchViewModel (`ui/screens/search/`)
 - **Injects**: MusicRepository, PlaybackController, SearchHistoryDao
@@ -63,7 +63,7 @@ class FooViewModel @Inject constructor(
 
 ### SettingsViewModel (`ui/screens/settings/`)
 - **Injects**: DataStore, MusicRepository
-- **State**: `darkMode`, `scanFolders`, `gaplessPlayback`, `crossfadeEnabled`, `crossfadeDuration`, `showAlbumArt`, `highResArt`, `showWaveform`, `autoResumeOnHeadset`, `resumeOnAppForeground` (default `true`; backed by `RESUME_ON_APP_FOREGROUND_KEY` which `MainActivity.onResume` reads to decide whether to auto-resume paused playback when a BT audio output is currently connected), `keepScreenOn`, `showLockScreenControls`, `continueToNextFolder`
+- **State**: `darkMode`, `scanFolders`, `gaplessPlayback`, `crossfadeEnabled`, `crossfadeDuration`, `showAlbumArt`, `highResArt`, `showWaveform`, `autoResumeOnHeadset` (default `false`; backed by the public `AUTO_RESUME_HEADSET_KEY` that `PlaybackService`'s `BluetoothReceiver` reads to decide whether to resume on a BT/headset connect event), `resumeOnAppForeground` (default `true`; backed by `RESUME_ON_APP_FOREGROUND_KEY` which `MainActivity.onResume` reads to decide whether to auto-resume paused playback when a BT audio output is currently connected), `keepScreenOn`, `showLockScreenControls`, `continueToNextFolder`
 - **Methods**: toggle methods for each setting, `addScanFolder()`, `removeScanFolder()`
 
 ### Detail ViewModels (album, artist, genre, year, composer, albumartist, folder)

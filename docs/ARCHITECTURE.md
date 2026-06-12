@@ -24,7 +24,7 @@ Pure Kotlin, no Android dependencies.
 
 ## Data Layer (`data/`)
 
-**Room database** (`MusicDatabase`, version 2) with 4 entities:
+**Room database** (`MusicDatabase`, version 3) with 5 entities:
 
 | Entity | Table | Purpose |
 |--------|-------|---------|
@@ -32,6 +32,7 @@ Pure Kotlin, no Android dependencies.
 | `PlaylistSongEntity` | playlist_songs | Join table (playlist <-> song) |
 | `FavoriteEntity` | favorites | Favorited song IDs |
 | `SearchHistoryEntity` | search_history | Recent search queries |
+| `CachedSongEntity` | cached_songs | Persistent snapshot of the scanned library |
 
 Four DAOs: `PlaylistDao`, `FavoriteDao`, `SearchHistoryDao`, `CachedSongDao`.
 
@@ -43,15 +44,15 @@ Four DAOs: `PlaylistDao`, `FavoriteDao`, `SearchHistoryDao`, `CachedSongDao`.
 
 All singletons, Hilt-injected:
 
-- **`PlaybackController`** -- controls ExoPlayer through a Media3 `MediaController`. Exposes `PlaybackState` as `StateFlow` (current song, position, duration, playing/paused, shuffle, repeat mode). Persists queue to DataStore and to a fast-read SharedPreferences snapshot so the MiniPlayer is populated synchronously on process restart. Handles folder-continuation when a queue ends; evicts deleted songs from the queue via `onSongDeleted()`.
+- **`PlaybackController`** -- controls ExoPlayer through a Media3 `MediaController`. Exposes `PlaybackState` as `StateFlow` (current song, position, duration, playing/paused, shuffle, repeat mode). Persists the full state (queue + original order + index + route + shuffle + repeat + position + a `saved_at` timestamp) to DataStore **and** a fast-read SharedPreferences snapshot so the MiniPlayer is populated synchronously on process restart; restore prefers whichever copy is newer. Resets `currentPosition` on every track change so a song's elapsed time can't leak onto the next. Handles folder-continuation when a queue ends; evicts deleted songs via `onSongDeleted()`; `clearQueue()` stops the player and clears all state together.
 
 - **`QueueManager`** -- manages the playback queue and current index. Maintains original order separately for shuffle mode.
 
 - **`SongDeletionHandler`** -- centralises the delete flow (request, Android-R+ confirmation, queue eviction, snackbar feedback) behind a single `delete(song)` call used by every list ViewModel.
 
-- **`PlaybackService`** -- `MediaSessionService` running ExoPlayer in a foreground service. Handles audio focus, notification artwork, and initializes `EqualizerManager`. `onTaskRemoved` only stops the service when the queue is empty, so a Bluetooth-induced auto-pause does not trigger a service kill when the user swipes the app away.
+- **`PlaybackService`** -- `MediaSessionService` running ExoPlayer in a foreground service. Handles audio focus, notification artwork, and initializes `EqualizerManager` from an `AnalyticsListener.onAudioSessionIdChanged` (the session id is unset at `onCreate`). `onTaskRemoved` only stops the service when the queue is empty, so a Bluetooth-induced auto-pause does not trigger a service kill when the user swipes the app away.
 
-- **`EqualizerManager`** (`player/audio/`) -- wraps Android AudioFX Equalizer and BassBoost. Persists band levels and presets to DataStore.
+- **`EqualizerManager`** (`player/audio/`) -- wraps Android AudioFX Equalizer and BassBoost. Applies base bands + preamp + tone as one combined per-band offset and re-applies them after an audio-session-id change. Persists band levels, preset, preamp, tone, and bass boost to DataStore.
 
 - **`RepeatMode`** -- enum with `OFF`, `ALL`, `ONE`. Cycles via `next()`.
 

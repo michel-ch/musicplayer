@@ -75,6 +75,7 @@ Persistent snapshot of the scanned library so the UI can render instantly on sta
 
 ```
 getAllPlaylists(): Flow<List<PlaylistEntity>>
+getAllPlaylistsWithCount(): Flow<List<PlaylistWithCount>>  // LEFT JOIN playlist_songs; reactive counts
 getPlaylistById(id: Long): PlaylistEntity?
 insertPlaylist(playlist: PlaylistEntity): Long
 updatePlaylist(playlist: PlaylistEntity)
@@ -87,6 +88,8 @@ removeFromPlaylist(playlistId: Long, songId: Long)
 clearPlaylist(playlistId: Long)
 getPlaylistSongCount(playlistId: Long): Flow<Int>
 ```
+
+`PlaylistWithCount` (`data/local/db/PlaylistWithCount.kt`) is a Room projection (`id`, `name`, `createdAt`, `songCount`) returned by `getAllPlaylistsWithCount()`. `PlaylistRepositoryImpl.getAllPlaylists()` maps it to the domain `Playlist`, replacing the old N+1 per-playlist count snapshot.
 
 ### FavoriteDao (`FavoriteDao.kt`)
 

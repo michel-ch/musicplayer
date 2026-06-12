@@ -1,0 +1,88 @@
+%% Music Player — architecture flux diagram.
+%% Edges are labelled with their F# from docs/architecture-fluxes.md (the master list).
+%% Solid = primary runtime/data fluxes; dotted = state/ops/integration fluxes.
+flowchart TD
+  user([User])
+
+  subgraph UI[Presentation]
+    direction TB
+    ui[Compose Screens + ViewModels]
+    mini[MiniPlayer / NowPlaying]
+  end
+
+  subgraph CORE[App Core - Hilt singletons]
+    direction TB
+    pc[PlaybackController]
+    qm[QueueManager]
+    eqm[EqualizerManager]
+    del[SongDeletionHandler]
+    mrepo[MusicRepositoryImpl]
+    prepo[PlaylistRepositoryImpl]
+    scan[MediaScanner]
+  end
+
+  subgraph STORE[Local Storage]
+    direction TB
+    room[(Room music_player.db)]
+    ds[(DataStore Preferences)]
+    snap[[playback_snapshot]]
+  end
+
+  subgraph SVC[Foreground Service]
+    direction TB
+    svc[PlaybackService + MediaSession]
+    exo[ExoPlayer]
+  end
+
+  subgraph SYS[Android System]
+    direction TB
+    mediastore[(MediaStore)]
+    saf[SAF / File System]
+    audiofx[AudioFX EQ + BassBoost]
+    audio[AudioManager + Notification]
+  end
+
+  dev([Bluetooth / Headset])
+
+  %% runtime
+  user -->|F1 play| ui
+  ui -->|F1| pc
+  pc -->|F1| qm
+  pc -->|F1/F3 MediaController IPC| svc
+  svc --> exo
+  exo -.->|F2 state| pc
+  pc -->|F2 StateFlow| mini
+  mini -->|F3 transport| pc
+  pc <-->|F11 bind/reconnect| svc
+
+  %% data
+  ui -->|F4 refreshLibrary| mrepo
+  mrepo -->|F4 cache-first| room
+  mrepo -->|F5| scan
+  scan -->|F5 query| mediastore
+  scan -->|F5 SAF| saf
+  mrepo -.->|F6 projections| ui
+  ui -->|F7 playlists/favorites| prepo
+  prepo --> room
+  ui <-->|F8 settings/sort| ds
+
+  %% state persistence
+  pc -->|F9 snapshot write| snap
+  pc -->|F9 durable| ds
+  snap -.->|F10 cold-start sync| pc
+  ds -.->|F10 recency| pc
+
+  %% service / integration / ops
+  svc -.->|F12 notification| audio
+  svc -->|F13 EQ init| eqm
+  eqm -->|F13 apply| audiofx
+  eqm <-->|F13 persist| ds
+  dev -.->|F14 ACL/headset broadcast| svc
+  audio -.->|F15 device check| pc
+  audio -.->|F16 open NowPlaying| ui
+
+  %% delete + permissions
+  ui -->|F17 delete| del
+  del --> mrepo
+  mrepo -->|F17 ContentResolver| mediastore
+  user -.->|F18 permissions| ui

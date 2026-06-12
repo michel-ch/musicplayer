@@ -95,6 +95,96 @@ Clean Architecture with three layers, all under `com.musicplayer.app`:
 └─────────────────────────────────────────┘
 ```
 
+### Flux diagram
+
+Data/control flows are grounded in source and tracked as `F1..F18` in
+[`docs/architecture-fluxes.md`](docs/architecture-fluxes.md) (the master list). The editable
+diagram is [`docs/architecture.drawio`](docs/architecture.drawio); the topology below is the
+[`docs/architecture.mmd`](docs/architecture.mmd) source rendered inline.
+
+```mermaid
+flowchart TD
+  user([User])
+
+  subgraph UI[Presentation]
+    ui[Compose Screens + ViewModels]
+    mini[MiniPlayer / NowPlaying]
+  end
+
+  subgraph CORE[App Core - Hilt singletons]
+    pc[PlaybackController]
+    qm[QueueManager]
+    eqm[EqualizerManager]
+    del[SongDeletionHandler]
+    mrepo[MusicRepositoryImpl]
+    prepo[PlaylistRepositoryImpl]
+    scan[MediaScanner]
+  end
+
+  subgraph STORE[Local Storage]
+    room[(Room music_player.db)]
+    ds[(DataStore Preferences)]
+    snap[[playback_snapshot]]
+  end
+
+  subgraph SVC[Foreground Service]
+    svc[PlaybackService + MediaSession]
+    exo[ExoPlayer]
+  end
+
+  subgraph SYS[Android System]
+    mediastore[(MediaStore)]
+    saf[SAF / File System]
+    audiofx[AudioFX EQ + BassBoost]
+    audio[AudioManager + Notification]
+  end
+
+  dev([Bluetooth / Headset])
+
+  user -->|F1 play| ui
+  ui -->|F1| pc
+  pc -->|F1| qm
+  pc -->|F1/F3 MediaController IPC| svc
+  svc --> exo
+  exo -.->|F2 state| pc
+  pc -->|F2 StateFlow| mini
+  mini -->|F3 transport| pc
+  pc <-->|F11 bind/reconnect| svc
+
+  ui -->|F4 refreshLibrary| mrepo
+  mrepo -->|F4 cache-first| room
+  mrepo -->|F5| scan
+  scan -->|F5 query| mediastore
+  scan -->|F5 SAF| saf
+  mrepo -.->|F6 projections| ui
+  ui -->|F7 playlists/favorites| prepo
+  prepo --> room
+  ui <-->|F8 settings/sort| ds
+
+  pc -->|F9 snapshot write| snap
+  pc -->|F9 durable| ds
+  snap -.->|F10 cold-start sync| pc
+  ds -.->|F10 recency| pc
+
+  svc -.->|F12 notification| audio
+  svc -->|F13 EQ init| eqm
+  eqm -->|F13 apply| audiofx
+  eqm <-->|F13 persist| ds
+  dev -.->|F14 ACL/headset broadcast| svc
+  audio -.->|F15 device check| pc
+  audio -.->|F16 open NowPlaying| ui
+
+  ui -->|F17 delete| del
+  del --> mrepo
+  mrepo -->|F17 ContentResolver| mediastore
+  user -.->|F18 permissions| ui
+```
+
+> The `.drawio` is the editable source; the inline Mermaid is the at-a-glance view. Long
+> cross-perimeter edges in the `.drawio` (e.g. the scanner reaching system services) are routed
+> as a draw.io-GUI refinement — re-import the `.mmd` via *Extras -> Edit Diagram -> Mermaid* after
+> topology changes. Keep the `F#` identical across the `.mmd`, the `.drawio`, and the flux list.
+
 - **`domain/`** — Pure Kotlin. `Song`, `Album`, `Artist`, `Folder`, `Playlist`, `Genre`, `Year`, `Composer`, `SortOption`, `DeleteResult`. Repository interfaces (`MusicRepository`, `PlaylistRepository`) and `SortSongsUseCase`.
 - **`data/`** — `MusicRepositoryImpl` (in-memory `MutableStateFlow<List<Song>>` + Room `cached_songs` snapshot), `PlaylistRepositoryImpl`, `MediaScanner`, Room database (v3), DAOs.
 - **`player/`** — `PlaybackController`, `QueueManager`, `SongDeletionHandler`, `PlaybackService` (`MediaSessionService`), `EqualizerManager`. All `@Singleton`, Hilt-injected.

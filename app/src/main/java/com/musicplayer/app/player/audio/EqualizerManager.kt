@@ -118,34 +118,50 @@ class EqualizerManager @Inject constructor(
 
     private suspend fun restoreSettings(eq: Equalizer) {
         val prefs = dataStore.data.first()
-        val enabled = prefs[EQ_ENABLED_KEY] ?: false
-        eq.enabled = enabled
-        _isEnabled.value = enabled
+        // A concurrent re-initialize() (e.g. rapid Bluetooth route changes) may have
+        // released this Equalizer while we awaited DataStore. Bail unless it's still the
+        // live instance; on the single Main thread, release() cannot interleave past this
+        // check since nothing below suspends. The try/catch is belt-and-suspenders.
+        if (eq !== equalizer) return
+        try {
+            val enabled = prefs[EQ_ENABLED_KEY] ?: false
+            eq.enabled = enabled
+            _isEnabled.value = enabled
 
-        val savedBands = prefs[EQ_BANDS_KEY]
-        if (savedBands != null) {
-            val levels = savedBands.split(",").mapNotNull { it.toIntOrNull() }
-            levels.forEachIndexed { index, level ->
-                if (index < eq.numberOfBands) {
-                    eq.setBandLevel(index.toShort(), level.toShort())
+            val savedBands = prefs[EQ_BANDS_KEY]
+            if (savedBands != null) {
+                val levels = savedBands.split(",").mapNotNull { it.toIntOrNull() }
+                levels.forEachIndexed { index, level ->
+                    if (index < eq.numberOfBands) {
+                        eq.setBandLevel(index.toShort(), level.toShort())
+                    }
+                }
+                _bandLevels.value = levels
+            } else {
+                _bandLevels.value = (0 until eq.numberOfBands.toInt()).map {
+                    eq.getBandLevel(it.toShort()).toInt()
                 }
             }
-            _bandLevels.value = levels
-        } else {
-            _bandLevels.value = (0 until eq.numberOfBands.toInt()).map {
-                eq.getBandLevel(it.toShort()).toInt()
-            }
-        }
 
-        val preset = prefs[EQ_PRESET_KEY] ?: -1
-        _currentPreset.value = preset
+            val preset = prefs[EQ_PRESET_KEY] ?: -1
+            _currentPreset.value = preset
+        } catch (_: IllegalStateException) {
+            // Effect released mid-restore; ignore.
+        }
     }
 
     private suspend fun restoreBassBoost(bb: BassBoost) {
         val prefs = dataStore.data.first()
         val strength = prefs[BASS_BOOST_KEY] ?: 0
-        bb.enabled = strength > 0
-        bb.setStrength(strength.toShort())
+        // Same guard as restoreSettings: a concurrent re-initialize() may have released
+        // this BassBoost while we awaited DataStore. Don't touch a released effect.
+        if (bb !== bassBoost) return
+        try {
+            bb.enabled = strength > 0
+            bb.setStrength(strength.toShort())
+        } catch (_: IllegalStateException) {
+            return
+        }
         _bassBoostStrength.value = strength
     }
 

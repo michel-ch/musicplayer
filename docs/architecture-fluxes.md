@@ -41,7 +41,7 @@ code wins — update the diagrams.
 | F15 | Resume on app foreground | integration | `MainActivity.onResume()` → `maybeResumeOnForeground()` → `AudioManager` device check + DataStore gates (`RESUME_ON_APP_FOREGROUND_KEY`, `USER_PAUSED_KEY`) → `PlaybackController.play()` | lifecycle + AudioManager + DataStore | `MainActivity.kt:102`–`124` |
 | F16 | Notification → app nav | integration | system notification `PendingIntent` (`ACTION_OPEN_NOW_PLAYING`) → `MainActivity.handleIntent()` → navigate to NowPlaying | Intent + StateFlow | `MainActivity.kt:137`–`143`, `player/service/PlaybackService.kt:108` |
 | F17 | Safe delete | data, integration | UI → `SongDeletionHandler.delete()` → `MusicRepositoryImpl.deleteSong()` (MediaStore / SAF; Android R+ `IntentSender` confirm) → `onSongDeleted()` queue eviction + Snackbar | ContentResolver + IntentSender | `player/SongDeletionHandler.kt:40`–`76`, `data/repository/MusicRepositoryImpl.kt:323`–`389` |
-| F18 | Runtime permissions | auth | `MainActivity` requests `READ_MEDIA_AUDIO` / `READ_EXTERNAL_STORAGE`, `POST_NOTIFICATIONS`, `BLUETOOTH_CONNECT` before scan/playback | `ActivityResultContracts` | `MainActivity.kt:163`–`186`, `AndroidManifest.xml:4` |
+| F18 | Runtime permissions | auth | `MainActivity` requests `READ_MEDIA_AUDIO` / `READ_EXTERNAL_STORAGE`, `POST_NOTIFICATIONS`, `BLUETOOTH_CONNECT` before scan/playback | `ActivityResultContracts` | `MainActivity.kt:171`–`194`, `AndroidManifest.xml:4` |
 
 ## Glossary
 

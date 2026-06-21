@@ -72,6 +72,14 @@ class MainActivity : ComponentActivity() {
         if (results[audioPermission] == false) {
             Toast.makeText(this, "Storage permission is required to load music", Toast.LENGTH_LONG).show()
         }
+        // Key is absent on API <31 (never requested there), so this only fires on a real denial.
+        if (results[Manifest.permission.BLUETOOTH_CONNECT] == false) {
+            Toast.makeText(
+                this,
+                "Bluetooth permission denied — headset auto-resume may not work reliably",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

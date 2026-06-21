@@ -5,7 +5,10 @@ import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.os.Build
+import androidx.core.content.IntentCompat
 
 /**
  * BroadcastReceiver that auto-resumes playback when a Bluetooth audio device
@@ -19,18 +22,26 @@ class BluetoothReceiver(
         when (intent?.action) {
             BluetoothDevice.ACTION_ACL_CONNECTED -> {
                 // Only resume for audio Bluetooth devices, not mice/keyboards/etc.
-                @Suppress("DEPRECATION")
-                val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                val device = IntentCompat.getParcelableExtra(
+                    intent, BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java
+                )
                 // Reading bluetoothClass requires BLUETOOTH_CONNECT on API 31+; if the
-                // permission was denied this can throw a SecurityException. Treat an
-                // unreadable class as "assume audio" so resume still works rather than
-                // silently dropping every connect event.
+                // permission was denied this throws SecurityException and the class is
+                // unreadable. Rather than blindly resuming for ANY device (which would
+                // wake playback when a mouse/keyboard/watch connects), fall back to
+                // checking whether a Bluetooth *audio* output is actually present — that
+                // check needs no permission.
                 val majorClass = try {
                     device?.bluetoothClass?.majorDeviceClass
                 } catch (_: SecurityException) {
                     null
                 }
-                if (majorClass == null || majorClass == BluetoothClass.Device.Major.AUDIO_VIDEO) {
+                val isAudio = when (majorClass) {
+                    BluetoothClass.Device.Major.AUDIO_VIDEO -> true
+                    null -> context?.let { hasBluetoothAudioOutput(it) } ?: false
+                    else -> false
+                }
+                if (isAudio) {
                     onDeviceConnected()
                 }
             }
@@ -40,6 +51,22 @@ class BluetoothReceiver(
                     onDeviceConnected()
                 }
             }
+        }
+    }
+
+    /**
+     * True if a Bluetooth audio output (A2DP / SCO / LE headset) is currently routed.
+     * Uses AudioManager, which requires no Bluetooth permission, so it works as a
+     * fallback when the connected device's class cannot be read.
+     */
+    private fun hasBluetoothAudioOutput(context: Context): Boolean {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            ?: return false
+        return audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any { device ->
+            device.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                    device.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
         }
     }
 }

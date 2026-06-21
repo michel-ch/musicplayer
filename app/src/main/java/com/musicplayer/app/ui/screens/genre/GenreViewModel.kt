@@ -42,7 +42,6 @@ class GenreViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val _selectedGenre = MutableStateFlow<String?>(null)
-    val selectedGenre: StateFlow<String?> = _selectedGenre.asStateFlow()
 
     private val _sortOption = MutableStateFlow(SortOption.TITLE_ASC)
     val sortOption: StateFlow<SortOption> = _sortOption.asStateFlow()

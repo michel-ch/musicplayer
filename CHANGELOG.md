@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each version corresponds to a
 git tag (`vX.Y.Z`) and a GitHub release.
 
+## [Unreleased]
+
+### Removed
+- Unused `media3-ui` dependency — playback runs on `media3-session` + `media3-exoplayer`
+  with a custom Compose UI; no `PlayerView` is used.
+- Dead code: `Song.formatBadge`, `PlaybackController.pause()` (inlined by `togglePlayPause`),
+  unread `selectedGenre`/`selectedYear` flows, the `PowerampSurfaceContainer` color, the empty
+  `data/model/` package, and the stale `accompanist`/`material3` version pins.
+
 ## [1.1.13] - 2026-06-10
 
 ### Fixed

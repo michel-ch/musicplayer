@@ -42,7 +42,6 @@ class YearViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val _selectedYear = MutableStateFlow<Int?>(null)
-    val selectedYear: StateFlow<Int?> = _selectedYear.asStateFlow()
 
     private val _sortOption = MutableStateFlow(SortOption.TITLE_ASC)
     val sortOption: StateFlow<SortOption> = _sortOption.asStateFlow()

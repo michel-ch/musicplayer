@@ -15,7 +15,6 @@ val PowerampTertiary = Color(0xFF9E9E9E)
 val PowerampError = Color(0xFFCF6679)
 val PowerampOnError = Color(0xFF000000)
 val PowerampOutline = Color(0xFF2A2A2A)
-val PowerampSurfaceContainer = Color(0xFF0F0F0F)
 
 // Category circle backgrounds
 val CategoryBlue = Color(0xFF1565C0)

@@ -771,11 +771,6 @@ class PlaybackController @Inject constructor(
         mediaController?.play()
     }
 
-    fun pause() {
-        setUserPaused(true)
-        mediaController?.pause()
-    }
-
     fun togglePlayPause() {
         val controller = mediaController
         if (controller != null) {

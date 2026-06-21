@@ -34,7 +34,4 @@ data class Song(
 
     val fileFormat: String
         get() = fileName.substringAfterLast('.', "").lowercase()
-
-    val formatBadge: String
-        get() = "$durationFormatted | $fileFormat"
 }

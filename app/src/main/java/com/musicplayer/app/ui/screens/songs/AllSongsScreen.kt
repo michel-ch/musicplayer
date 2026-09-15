@@ -90,7 +90,7 @@ fun AllSongsScreen(
         SongOptionsSheet(
             song = selectedSong!!,
             onDismiss = { selectedSong = null },
-            onPlayNext = { song -> viewModel.playbackController.addToQueue(song) },
+            onPlayNext = { song -> viewModel.playbackController.playNext(song) },
             onAddToPlaylist = { song, playlistId ->
                 scope.launch { playlistViewModel.addSongToPlaylist(playlistId, song.id) }
             },

@@ -29,6 +29,8 @@ import com.musicplayer.app.MainActivity
 import com.musicplayer.app.R
 import com.musicplayer.app.player.BluetoothReceiver
 import com.musicplayer.app.player.PlaybackController
+import com.musicplayer.app.player.QueueSerializer
+import com.musicplayer.app.player.toMediaItem
 import com.musicplayer.app.player.audio.EqualizerManager
 import com.musicplayer.app.ui.screens.settings.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -143,6 +145,26 @@ class PlaybackService : MediaSessionService() {
                         .build()
                 }
 
+                // System-initiated resumption (headset/BT play button, Android 13+
+                // media-resumption tile) after the app process was killed: the
+                // controller that normally loads the queue does not exist yet, so
+                // rebuild the playlist from the persisted snapshot here.
+                override fun onPlaybackResumption(
+                    mediaSession: MediaSession,
+                    controller: MediaSession.ControllerInfo
+                ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+                    val prefs = getSharedPreferences(QueueSerializer.SNAPSHOT_PREFS, Context.MODE_PRIVATE)
+                    val snapshot = QueueSerializer.readSnapshot(prefs)
+                        ?: return Futures.immediateFailedFuture(UnsupportedOperationException())
+                    return Futures.immediateFuture(
+                        MediaSession.MediaItemsWithStartPosition(
+                            snapshot.queue.map { it.toMediaItem() },
+                            snapshot.index,
+                            snapshot.position
+                        )
+                    )
+                }
+
                 override fun onCustomCommand(
                     session: MediaSession,
                     controller: MediaSession.ControllerInfo,
@@ -173,7 +195,11 @@ class PlaybackService : MediaSessionService() {
         // Update notification artwork with per-song embedded art on track change
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                mediaItem ?: return
+                if (mediaItem == null) {
+                    // Playlist cleared: forget the id so a late artwork result can't match.
+                    lastArtworkMediaId = null
+                    return
+                }
                 val mediaId = mediaItem.mediaId
                 if (mediaId == lastArtworkMediaId) return
                 lastArtworkMediaId = mediaId
@@ -249,9 +275,14 @@ class PlaybackService : MediaSessionService() {
                     .setMediaMetadata(updatedMetadata)
                     .build()
                 serviceScope.launch(Dispatchers.Main) {
-                    // Verify this is still the current song before replacing
-                    if (lastArtworkMediaId == mediaId) {
-                        val index = player.currentMediaItemIndex
+                    // Verify this is still the current song before replacing. On an
+                    // emptied playlist replaceMediaItem() would *insert* the item and
+                    // resurrect a song the user just cleared.
+                    val index = player.currentMediaItemIndex
+                    if (lastArtworkMediaId == mediaId &&
+                        index < player.mediaItemCount &&
+                        player.getMediaItemAt(index).mediaId == mediaId
+                    ) {
                         player.replaceMediaItem(index, updatedItem)
                     }
                 }

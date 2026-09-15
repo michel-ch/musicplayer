@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -63,9 +64,13 @@ fun PlaylistScreen(
         if (selectedPlaylistId == null) return@LaunchedEffect
         val currentId = playbackState.currentSong?.id ?: return@LaunchedEffect
 
-        val songsList = if (playlistSongs.isEmpty()) {
-            snapshotFlow { playlistSongs }.first { it.isNotEmpty() }
-        } else playlistSongs
+        // The StateFlow may still hold the previous playlist's songs when this starts;
+        // give it a moment to emit the new list before searching for the current song.
+        val before = playlistSongs
+        val songsList = withTimeoutOrNull(500) {
+            snapshotFlow { playlistSongs }.first { it !== before && it.isNotEmpty() }
+        } ?: playlistSongs
+        if (songsList.isEmpty()) return@LaunchedEffect
 
         val songIndex = songsList.indexOfFirst { it.id == currentId }
         if (songIndex < 0) return@LaunchedEffect
@@ -75,6 +80,7 @@ fun PlaylistScreen(
     }
 
     var showCreateDialog by remember { mutableStateOf(false) }
+    var songToRemove by remember { mutableStateOf<com.musicplayer.app.domain.model.Song?>(null) }
     var showListOptions by remember { mutableStateOf(false) }
     var reversed by remember { mutableStateOf(false) }
     var listPositionEnabled by remember { mutableStateOf(false) }
@@ -190,15 +196,29 @@ fun PlaylistScreen(
                         song = song,
                         isPlaying = song.id == playbackState.currentSong?.id,
                         onClick = { viewModel.playSong(song, playlistSongs) },
-                        onMoreClick = {
-                            selectedPlaylistId?.let { playlistId ->
-                                viewModel.removeSongFromPlaylist(playlistId, song.id)
-                            }
-                        }
+                        // The "more" button removed the song immediately; ask first.
+                        onMoreClick = { songToRemove = song }
                     )
                 }
             }
         }
+    }
+
+    songToRemove?.let { song ->
+        AlertDialog(
+            onDismissRequest = { songToRemove = null },
+            title = { Text("Remove from playlist?") },
+            text = { Text(song.title) },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedPlaylistId?.let { viewModel.removeSongFromPlaylist(it, song.id) }
+                    songToRemove = null
+                }) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(onClick = { songToRemove = null }) { Text("Cancel") }
+            }
+        )
     }
 
     if (showCreateDialog) {

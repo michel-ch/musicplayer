@@ -18,6 +18,9 @@ interface CachedSongDao {
     @Query("DELETE FROM cached_songs")
     suspend fun clear()
 
+    @Query("DELETE FROM cached_songs WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
     @Transaction
     suspend fun replaceAll(songs: List<CachedSongEntity>) {
         clear()

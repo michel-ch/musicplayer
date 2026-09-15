@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -110,9 +111,14 @@ fun FolderBrowserScreen(
         if (selectedFolder == null) return@LaunchedEffect
         val currentId = playbackState.currentSong?.id ?: return@LaunchedEffect
 
-        val songsList = if (folderSongs.isEmpty()) {
-            snapshotFlow { folderSongs }.first { it.isNotEmpty() }
-        } else folderSongs
+        // The StateFlow may still hold the previous folder's songs when this starts;
+        // wait (briefly) for a list that actually belongs to the selected folder.
+        val songsList = withTimeoutOrNull(500) {
+            snapshotFlow { folderSongs }.first { list ->
+                list.isNotEmpty() && list.all { it.folderPath == selectedFolder }
+            }
+        } ?: folderSongs
+        if (songsList.isEmpty()) return@LaunchedEffect
 
         val songIndex = songsList.indexOfFirst { it.id == currentId }
         if (songIndex < 0) return@LaunchedEffect
@@ -133,7 +139,7 @@ fun FolderBrowserScreen(
         SongOptionsSheet(
             song = selectedSong!!,
             onDismiss = { selectedSong = null },
-            onPlayNext = { song -> viewModel.playbackController.addToQueue(song) },
+            onPlayNext = { song -> viewModel.playbackController.playNext(song) },
             onAddToPlaylist = { song, playlistId ->
                 scope.launch { playlistViewModel.addSongToPlaylist(playlistId, song.id) }
             },
@@ -407,6 +413,7 @@ fun FolderBrowserScreen(
                     AlphabetFastScroller(
                         listState = listState,
                         items = folderSongs.map { it.title },
+                        indexOffset = 1, // folder header occupies index 0
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
                             .padding(end = 2.dp)

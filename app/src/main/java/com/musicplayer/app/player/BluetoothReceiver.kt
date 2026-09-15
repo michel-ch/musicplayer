@@ -19,6 +19,10 @@ class BluetoothReceiver(
 ) : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
+        // ACTION_HEADSET_PLUG is sticky: registering delivers the *current* state
+        // immediately, which auto-resumed playback on every service start with a wired
+        // headset plugged in. Only react to real transitions.
+        if (isInitialStickyBroadcast) return
         when (intent?.action) {
             BluetoothDevice.ACTION_ACL_CONNECTED -> {
                 // Only resume for audio Bluetooth devices, not mice/keyboards/etc.

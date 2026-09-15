@@ -223,7 +223,7 @@ private fun SongInfoDialog(song: Song, onDismiss: () -> Unit) {
                 InfoRow("Album", song.album)
                 InfoRow("Duration", song.durationFormatted)
                 InfoRow("Format", song.fileFormat.uppercase())
-                InfoRow("Size", Formatter.formatFileSize(null, song.size))
+                InfoRow("Size", Formatter.formatFileSize(LocalContext.current, song.size))
                 InfoRow("Path", song.filePath)
                 if (song.genre.isNotBlank()) InfoRow("Genre", song.genre)
                 if (song.year > 0) InfoRow("Year", song.year.toString())

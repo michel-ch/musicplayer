@@ -56,6 +56,7 @@ fun SearchScreen(
     onFolderClick: (String) -> Unit,
     onAlbumArtistClick: (String) -> Unit = {},
     onComposerClick: (String) -> Unit = {},
+    onGenreClick: (String) -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val query by viewModel.searchQuery.collectAsState()
@@ -66,6 +67,7 @@ fun SearchScreen(
     val folders by viewModel.folders.collectAsState()
     val albumArtists by viewModel.albumArtists.collectAsState()
     val composers by viewModel.composers.collectAsState()
+    val genres by viewModel.genres.collectAsState()
     val history by viewModel.searchHistory.collectAsState()
     val playbackState by viewModel.playbackController.playbackState.collectAsState()
     val focusRequester = remember { FocusRequester() }
@@ -352,6 +354,36 @@ fun SearchScreen(
                     }
                 }
 
+                // Genres (the chip existed but had no results section)
+                if ((filter == SearchFilter.ALL || filter == SearchFilter.GENRES) && genres.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Genres",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                    items(genres, key = { "genre_${it.name}" }) { genre ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onGenreClick(genre.name) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(genre.name, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "${genre.songCount} songs",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Folders
                 if ((filter == SearchFilter.ALL || filter == SearchFilter.FOLDERS) && folders.isNotEmpty()) {
                     item {
@@ -390,7 +422,8 @@ fun SearchScreen(
 
                 // No results
                 val hasResults = songs.isNotEmpty() || albums.isNotEmpty() || artists.isNotEmpty() ||
-                        folders.isNotEmpty() || albumArtists.isNotEmpty() || composers.isNotEmpty()
+                        folders.isNotEmpty() || albumArtists.isNotEmpty() || composers.isNotEmpty() ||
+                        genres.isNotEmpty()
                 if (!hasResults) {
                     item {
                         Spacer(modifier = Modifier.height(32.dp))

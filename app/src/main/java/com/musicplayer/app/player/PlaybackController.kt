@@ -12,10 +12,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import org.json.JSONArray
-import org.json.JSONObject
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
@@ -36,6 +33,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -63,6 +61,10 @@ class PlaybackController @Inject constructor(
 
     @Volatile
     private var pendingPlay: Boolean = false
+
+    // Bounded error recovery: one re-prepare per media item, then skip it.
+    private var errorMediaId: String? = null
+    private var errorRetries = 0
 
     private val _sourceRoute = MutableStateFlow<String?>(null)
     val sourceRoute: StateFlow<String?> = _sourceRoute.asStateFlow()
@@ -246,9 +248,12 @@ class PlaybackController @Inject constructor(
             }
             queueManager.restoreState(queueSongs, originalSongs, startIndex, shuffle)
 
-            val controller = mediaController
-            if (controller != null) {
-                scope.launch(Dispatchers.Main) {
+            // Serialize with the connect callback (main looper): checking mediaController
+            // from IO and then setting pendingRestore raced with getAndSet(null) in
+            // connectToService, which could drop the restore entirely.
+            withContext(Dispatchers.Main) {
+                val controller = mediaController
+                if (controller != null) {
                     if (controller.mediaItemCount > 0) {
                         // Service was already running (e.g. music playing in background).
                         // Sync our in-memory state to wherever the service currently is
@@ -281,9 +286,9 @@ class PlaybackController @Inject constructor(
                             pendingPlay = false
                         }
                     }
+                } else {
+                    pendingRestore.set(PendingRestore(queueSongs, startIndex, position))
                 }
-            } else {
-                pendingRestore.set(PendingRestore(queueSongs, startIndex, position))
             }
         }
     }
@@ -326,68 +331,9 @@ class PlaybackController @Inject constructor(
         }
     }
 
-    private fun serializeQueue(songs: List<Song>): String {
-        val array = JSONArray()
-        for (song in songs) {
-            val obj = JSONObject()
-            obj.put("id", song.id)
-            obj.put("title", song.title)
-            obj.put("artist", song.artist)
-            obj.put("album", song.album)
-            obj.put("albumId", song.albumId)
-            obj.put("duration", song.duration)
-            obj.put("trackNumber", song.trackNumber)
-            obj.put("discNumber", song.discNumber)
-            obj.put("year", song.year)
-            obj.put("genre", song.genre)
-            obj.put("folderPath", song.folderPath)
-            obj.put("folderName", song.folderName)
-            obj.put("filePath", song.filePath)
-            obj.put("fileName", song.fileName)
-            obj.put("size", song.size)
-            obj.put("dateAdded", song.dateAdded)
-            obj.put("dateModified", song.dateModified)
-            obj.put("uri", song.uri.toString())
-            obj.put("albumArtUri", song.albumArtUri?.toString() ?: "")
-            obj.put("composer", song.composer)
-            array.put(obj)
-        }
-        return array.toString()
-    }
+    private fun serializeQueue(songs: List<Song>): String = QueueSerializer.serialize(songs)
 
-    private fun deserializeQueue(json: String): List<Song> {
-        return try {
-            val array = JSONArray(json)
-            (0 until array.length()).map { i ->
-                val obj = array.getJSONObject(i)
-                Song(
-                    id = obj.getLong("id"),
-                    title = obj.getString("title"),
-                    artist = obj.optString("artist", ""),
-                    album = obj.optString("album", ""),
-                    albumId = obj.optLong("albumId", 0L),
-                    duration = obj.optLong("duration", 0L),
-                    trackNumber = obj.optInt("trackNumber", 0),
-                    discNumber = obj.optInt("discNumber", 1),
-                    year = obj.optInt("year", 0),
-                    genre = obj.optString("genre", ""),
-                    folderPath = obj.optString("folderPath", ""),
-                    folderName = obj.optString("folderName", ""),
-                    filePath = obj.optString("filePath", ""),
-                    fileName = obj.optString("fileName", ""),
-                    size = obj.optLong("size", 0L),
-                    dateAdded = obj.optLong("dateAdded", 0L),
-                    dateModified = obj.optLong("dateModified", 0L),
-                    uri = Uri.parse(obj.getString("uri")),
-                    albumArtUri = obj.optString("albumArtUri", "").takeIf { it.isNotEmpty() }?.let { Uri.parse(it) },
-                    composer = obj.optString("composer", "")
-                )
-            }
-        } catch (e: Exception) {
-            Log.e("PlaybackController", "Failed to deserialize queue", e)
-            emptyList()
-        }
-    }
+    private fun deserializeQueue(json: String): List<Song> = QueueSerializer.deserialize(json)
 
     private fun connectToService() {
         val sessionToken = SessionToken(
@@ -536,6 +482,15 @@ class PlaybackController @Inject constructor(
     }
 
     private fun createPlayerListener(): Player.Listener = object : Player.Listener {
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                // A pause from the notification, lock screen, or headset button never
+                // went through pause()/togglePlayPause(), so it was not recorded as a
+                // deliberate pause and the BT/foreground auto-resume paths overrode it.
+                if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
+                    setUserPaused(true)
+                }
+            }
+
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 _playbackState.update { it.copy(isPlaying = isPlaying) }
                 if (isPlaying) {
@@ -583,6 +538,8 @@ class PlaybackController @Inject constructor(
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
+                    errorMediaId = null
+                    errorRetries = 0
                     _playbackState.update {
                         it.copy(duration = mediaController?.duration?.coerceAtLeast(0) ?: 0)
                     }
@@ -590,22 +547,31 @@ class PlaybackController @Inject constructor(
                 if (playbackState == Player.STATE_ENDED) {
                     handlePlaybackEnded()
                 }
-                if (playbackState == Player.STATE_IDLE) {
-                    // ExoPlayer can land in IDLE after an audio-sink failure (e.g. BT
-                    // routing change). Re-prepare so the controller is usable again
-                    // instead of leaving the MiniPlayer with controls that do nothing.
-                    val controller = mediaController ?: return
-                    if (controller.mediaItemCount > 0) {
-                        controller.prepare()
-                    }
-                }
+                // IDLE is reached either through an error (handled with a bounded retry
+                // in onPlayerError) or through an intentional stop() — re-preparing here
+                // unconditionally looped forever on an unplayable file and re-armed the
+                // player in the middle of clearQueue()/Close.
             }
 
             override fun onPlayerError(error: PlaybackException) {
                 Log.w(TAG, "Player error; attempting to recover", error)
                 val controller = mediaController ?: return
-                if (controller.mediaItemCount > 0) {
-                    controller.prepare()
+                if (controller.mediaItemCount == 0) return
+                val mediaId = controller.currentMediaItem?.mediaId
+                if (mediaId == errorMediaId) errorRetries++ else {
+                    errorMediaId = mediaId
+                    errorRetries = 1
+                }
+                when {
+                    // One retry covers transient audio-sink failures (BT route change).
+                    errorRetries <= 1 -> controller.prepare()
+                    // Same item failed twice: it's unplayable (deleted/corrupt) — skip it.
+                    controller.hasNextMediaItem() -> {
+                        controller.seekToNextMediaItem()
+                        controller.prepare()
+                        controller.play()
+                    }
+                    else -> _playbackState.update { it.copy(isPlaying = false) }
                 }
             }
 
@@ -630,6 +596,13 @@ class PlaybackController @Inject constructor(
                     if (queue.isEmpty()) return
                 }
 
+                // An emptied playlist (notification Close, stop()) still reports index 0,
+                // which would silently reset the current song to queue[0]. Keep our own
+                // index in that case and only sync isPlaying.
+                if (controller.mediaItemCount == 0) {
+                    _playbackState.update { it.copy(isPlaying = controller.isPlaying) }
+                    return
+                }
                 val idx = controller.currentMediaItemIndex.let {
                     if (it in queue.indices) it
                     else queueManager.currentIndex.value.coerceIn(0, queue.size - 1)
@@ -667,6 +640,10 @@ class PlaybackController @Inject constructor(
                 }
             }
             RepeatMode.OFF -> {
+                // A finished queue must not be treated as an auto-pause: otherwise the
+                // BT/foreground auto-resume restarts the last track on every foreground.
+                // (onIsPlayingChanged(true) clears this again if the next folder plays.)
+                setUserPaused(true)
                 scope.launch {
                     try {
                         val prefs = dataStore.data.first()
@@ -812,6 +789,9 @@ class PlaybackController @Inject constructor(
                 } else if (controller.playbackState == Player.STATE_ENDED) {
                     // Queue finished — seek back to current song start so play restarts it
                     controller.seekTo(queueManager.currentIndex.value.coerceAtLeast(0), 0)
+                } else if (controller.playbackState == Player.STATE_IDLE) {
+                    // Stopped or gave up after an error — play() alone does nothing here.
+                    controller.prepare()
                 }
                 controller.play()
             }
@@ -894,8 +874,26 @@ class PlaybackController @Inject constructor(
         }
     }
 
+    /**
+     * After a notification Close the in-app queue is kept but the service playlist is
+     * deliberately left empty. Any queue-relative operation must first reload it, or
+     * the player and QueueManager index different lists.
+     */
+    private fun ensurePlayerLoaded(controller: MediaController) {
+        if (controller.mediaItemCount > 0) return
+        val queue = queueManager.queue.value
+        if (queue.isEmpty()) return
+        controller.setMediaItems(
+            queue.map { it.toMediaItem() },
+            queueManager.currentIndex.value.coerceAtLeast(0),
+            _playbackState.value.currentPosition.coerceAtLeast(0)
+        )
+        controller.prepare()
+    }
+
     fun playAtIndex(index: Int) {
         mediaController?.let { controller ->
+            ensurePlayerLoaded(controller)
             if (index in 0 until controller.mediaItemCount) {
                 controller.seekTo(index, 0)
                 controller.play()
@@ -904,8 +902,45 @@ class PlaybackController @Inject constructor(
     }
 
     fun addToQueue(song: Song) {
+        mediaController?.let { ensurePlayerLoaded(it) }
         queueManager.addToQueue(song)
         mediaController?.addMediaItem(song.toMediaItem())
+    }
+
+    /** Insert [song] right after the current one ("Play Next"), in both lists. */
+    fun playNext(song: Song) {
+        mediaController?.let { ensurePlayerLoaded(it) }
+        val index = queueManager.insertAfterCurrent(song)
+        mediaController?.addMediaItem(index, song.toMediaItem())
+    }
+
+    /**
+     * Remove a queue entry from QueueManager AND the player playlist. Removing from the
+     * manager alone left the song in ExoPlayer, so it still played and every index
+     * mapping after it was off by one.
+     */
+    fun removeFromQueue(index: Int) {
+        val queue = queueManager.queue.value
+        if (index !in queue.indices) return
+        val wasLast = queue.size == 1
+        queueManager.removeFromQueue(index)
+        mediaController?.let { controller ->
+            if (index < controller.mediaItemCount) controller.removeMediaItem(index)
+        }
+        if (wasLast) {
+            mediaController?.stop()
+            mediaController?.clearMediaItems()
+            _playbackState.update {
+                it.copy(currentSong = null, isPlaying = false, currentPosition = 0, duration = 0)
+            }
+            clearPersistedState()
+            return
+        }
+        val newSong = queueManager.currentSong.value ?: return
+        if (_playbackState.value.currentSong?.id != newSong.id) {
+            _playbackState.update { it.copy(currentSong = newSong, currentPosition = 0) }
+        }
+        saveLastSong(newSong)
     }
 
     /**
@@ -954,27 +989,5 @@ class PlaybackController @Inject constructor(
         } else {
             _playbackState.value.currentSong?.let { saveLastSong(it) }
         }
-    }
-
-    private fun Song.toMediaItem(): MediaItem {
-        // Prefer content URI, fall back to file path if content URI might be stale
-        val mediaUri = if (uri.scheme == "content") {
-            uri
-        } else if (filePath.isNotEmpty()) {
-            Uri.fromFile(java.io.File(filePath))
-        } else {
-            uri
-        }
-        return MediaItem.Builder()
-            .setUri(mediaUri)
-            .setMediaId(id.toString())
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setArtist(artist)
-                    .setAlbumTitle(album)
-                    .build()
-            )
-            .build()
     }
 }

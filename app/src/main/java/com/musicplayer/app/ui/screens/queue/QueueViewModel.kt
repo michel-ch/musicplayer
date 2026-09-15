@@ -20,7 +20,7 @@ class QueueViewModel @Inject constructor(
     }
 
     fun removeFromQueue(index: Int) {
-        queueManager.removeFromQueue(index)
+        playbackController.removeFromQueue(index)
     }
 
     fun clearQueue() {

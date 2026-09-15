@@ -35,6 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun FolderHierarchyScreen(
     onBackClick: () -> Unit,
+    onFolderClick: (String) -> Unit,
     viewModel: FolderViewModel = hiltViewModel()
 ) {
     val folders by viewModel.folders.collectAsState()
@@ -44,12 +45,13 @@ fun FolderHierarchyScreen(
         // Show root-level parent folders
         folders.map { java.io.File(it.path).parent ?: "/" }.distinct().sorted()
     } else {
-        val currentPath = pathStack.last()
-        folders.filter { it.path.startsWith(currentPath) }
-            .map { it.path }
+        // Direct children only. A bare startsWith also matched siblings sharing a
+        // prefix ("Music2" for "Music") and the parent itself.
+        val currentPath = pathStack.last().trimEnd('/')
+        folders.map { it.path }
             .filter { path ->
-                val relative = path.removePrefix(currentPath).trimStart('/', '\\')
-                !relative.contains('/') && !relative.contains('\\')
+                path.startsWith("$currentPath/") &&
+                    !path.removePrefix("$currentPath/").contains('/')
             }
             .distinct()
             .sorted()
@@ -76,7 +78,7 @@ fun FolderHierarchyScreen(
         ) {
             if (pathStack.isEmpty()) {
                 items(currentFolders) { parentPath ->
-                    val childCount = folders.count { it.path.startsWith(parentPath) }
+                    val childCount = folders.count { it.path.startsWith(parentPath.trimEnd('/') + "/") }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -93,12 +95,15 @@ fun FolderHierarchyScreen(
                     }
                 }
             } else {
-                val matchingFolders = folders.filter { it.path.startsWith(pathStack.last()) }
+                // Tapping used to call selectFolder() on a ViewModel this screen never
+                // renders songs for; open the folder browser with the folder selected.
+                val childPaths = currentFolders.toSet()
+                val matchingFolders = folders.filter { it.path in childPaths }
                 items(matchingFolders, key = { it.path }) { folder ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { viewModel.selectFolder(folder.path) }
+                            .clickable { onFolderClick(folder.path) }
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

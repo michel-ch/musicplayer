@@ -25,6 +25,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.musicplayer.app.domain.repository.MusicRepository
 import com.musicplayer.app.player.PlaybackController
 import com.musicplayer.app.player.service.PlaybackService
 import com.musicplayer.app.ui.MusicPlayerRoot
@@ -61,6 +62,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var playbackController: PlaybackController
 
+    @Inject
+    lateinit var musicRepository: MusicRepository
+
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
@@ -71,6 +75,9 @@ class MainActivity : ComponentActivity() {
         }
         if (results[audioPermission] == false) {
             Toast.makeText(this, "Storage permission is required to load music", Toast.LENGTH_LONG).show()
+        } else if (results[audioPermission] == true) {
+            // The library's first scan ran (and was skipped) before this grant.
+            lifecycleScope.launch { musicRepository.refreshLibrary(force = true) }
         }
         // Key is absent on API <31 (never requested there), so this only fires on a real denial.
         if (results[Manifest.permission.BLUETOOTH_CONNECT] == false) {
@@ -175,6 +182,11 @@ class MainActivity : ComponentActivity() {
                 add(Manifest.permission.POST_NOTIFICATIONS)
             } else {
                 add(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            // Direct File.delete() fallback on Android 9 and below needs the runtime
+            // WRITE permission; it was declared in the manifest but never requested.
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
             // BLUETOOTH_CONNECT is a runtime permission on API 31+; without it the
             // BluetoothReceiver cannot read a connected device's class, so the

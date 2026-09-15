@@ -104,6 +104,22 @@ class QueueManager @Inject constructor() {
         originalQueue = originalQueue + song
     }
 
+    /** Insert right after the current index; returns the index it was inserted at. */
+    fun insertAfterCurrent(song: Song): Int {
+        val current = _queue.value
+        val insertAt = (_currentIndex.value + 1).coerceIn(0, current.size)
+        _queue.value = current.toMutableList().apply { add(insertAt, song) }
+        val currentSongId = _currentSong.value?.id
+        val originalAt = originalQueue.indexOfFirst { it.id == currentSongId }
+            .let { if (it < 0) originalQueue.size else it + 1 }
+        originalQueue = originalQueue.toMutableList().apply { add(originalAt, song) }
+        if (_currentIndex.value < 0) {
+            _currentIndex.value = 0
+            updateCurrentSong()
+        }
+        return insertAt
+    }
+
     fun removeFromQueue(index: Int) {
         if (index in _queue.value.indices) {
             val removed = _queue.value[index]

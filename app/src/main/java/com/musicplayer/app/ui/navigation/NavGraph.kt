@@ -161,7 +161,10 @@ fun NavGraph(
             )
         }
 
-        composable(Screen.Folders.route) {
+        composable(
+            route = Screen.Folders.PATTERN,
+            arguments = listOf(navArgument("path") { type = NavType.StringType; nullable = true; defaultValue = null })
+        ) {
             FolderBrowserScreen(
                 onBackClick = { navController.popBackStack() }
             )
@@ -185,7 +188,12 @@ fun NavGraph(
                 onArtistClick = { artistName ->
                     navController.navigate(Screen.ArtistDetail.createRoute(artistName))
                 },
-                onFolderClick = { /* Navigate to folders with selected folder */ },
+                onFolderClick = { path ->
+                    navController.navigate(Screen.Folders.createRoute(path))
+                },
+                onGenreClick = { genreName ->
+                    navController.navigate(Screen.GenreDetail.createRoute(genreName))
+                },
                 onAlbumArtistClick = { artistName ->
                     navController.navigate(Screen.AlbumArtistDetail.createRoute(artistName))
                 },
@@ -257,7 +265,10 @@ fun NavGraph(
 
         composable(Screen.FoldersHierarchy.route) {
             FolderHierarchyScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onFolderClick = { path ->
+                    navController.navigate(Screen.Folders.createRoute(path))
+                }
             )
         }
 

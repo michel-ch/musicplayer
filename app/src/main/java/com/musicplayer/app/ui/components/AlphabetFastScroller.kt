@@ -28,7 +28,9 @@ private val ALPHABET = ('A'..'Z').toList() + '#'
 fun AlphabetFastScroller(
     listState: LazyListState,
     items: List<String>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Number of non-item rows (headers) before the first entry of [items]. */
+    indexOffset: Int = 0
 ) {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -46,7 +48,7 @@ fun AlphabetFastScroller(
                     val letter = ALPHABET[index]
                     val targetIndex = findFirstIndexForLetter(items, letter)
                     if (targetIndex >= 0) {
-                        scope.launch { listState.scrollToItem(targetIndex) }
+                        scope.launch { listState.scrollToItem(targetIndex + indexOffset) }
                     }
                 }
             }
@@ -59,7 +61,7 @@ fun AlphabetFastScroller(
                     val letter = ALPHABET[index]
                     val targetIndex = findFirstIndexForLetter(items, letter)
                     if (targetIndex >= 0) {
-                        scope.launch { listState.scrollToItem(targetIndex) }
+                        scope.launch { listState.scrollToItem(targetIndex + indexOffset) }
                     }
                 }
             },

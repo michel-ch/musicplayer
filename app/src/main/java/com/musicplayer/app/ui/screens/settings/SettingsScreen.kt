@@ -52,6 +52,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
@@ -84,37 +85,17 @@ data class SettingsCategory(
     val sectionIndex: Int
 )
 
-// Section indices in the LazyColumn
-// 0 = categories header area (all category items)
-// After categories: sections in order
-private const val SECTION_HEADSET_BLUETOOTH = 0
-private const val SECTION_LOOK_AND_FEEL = 1
-private const val SECTION_AUDIO = 2
-private const val SECTION_ALBUM_ART = 3
-private const val SECTION_VISUALIZATION = 4
-private const val SECTION_LOCK_SCREEN = 5
-private const val SECTION_LIBRARY = 6
-private const val SECTION_EXPORT_IMPORT = 7
-private const val SECTION_ABOUT = 8
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val darkMode by viewModel.darkMode.collectAsState()
     val scanFolders by viewModel.scanFolders.collectAsState()
-    val gaplessPlayback by viewModel.gaplessPlayback.collectAsState()
-    val crossfadeEnabled by viewModel.crossfadeEnabled.collectAsState()
-    val crossfadeDuration by viewModel.crossfadeDuration.collectAsState()
-    val showAlbumArt by viewModel.showAlbumArt.collectAsState()
-    val highResArt by viewModel.highResArt.collectAsState()
     val showWaveform by viewModel.showWaveform.collectAsState()
     val autoResumeOnHeadset by viewModel.autoResumeOnHeadset.collectAsState()
     val resumeOnAppForeground by viewModel.resumeOnAppForeground.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
-    val showLockScreenControls by viewModel.showLockScreenControls.collectAsState()
     val continueToNextFolder by viewModel.continueToNextFolder.collectAsState()
 
     val context = LocalContext.current
@@ -151,19 +132,24 @@ fun SettingsScreen(
         }
     }
 
-    // Number of category items at the top
-    val categoryCount = 9
+    // LazyColumn index of each SectionHeader. These must mirror the item() calls
+    // below exactly (dividers and the variable scan-folder list included).
+    val categoryCount = 6
+    val idxHeadset = categoryCount + 1                       // divider, header
+    val idxAudio = idxHeadset + 1 + 2 + 1                    // header, 2 rows, divider
+    val idxVisualization = idxAudio + 1 + 1 + 1
+    val idxScreen = idxVisualization + 1 + 1 + 1
+    val idxLibrary = idxScreen + 1 + 1 + 1
+    // header, folders label, N folders, add button, spacer, rescan row, divider
+    val idxAbout = idxLibrary + 1 + 1 + scanFolders.size + 1 + 1 + 1 + 1
 
     val settingsCategories = listOf(
-        SettingsCategory("Headset/Bluetooth", "Auto-resume, controls", Icons.Default.Bluetooth, CategoryIndigo, categoryCount + 0),
-        SettingsCategory("Look and Feel", "Theme, colors, animations", Icons.Default.Palette, CategoryPurple, categoryCount + 2),
-        SettingsCategory("Audio", "Playback, gapless, crossfade", Icons.Default.MusicNote, CategoryBlue, categoryCount + 4),
-        SettingsCategory("Album Art", "Artwork display settings", Icons.Default.Image, CategoryOrange, categoryCount + 6),
-        SettingsCategory("Visualization", "Waveform, spectrum display", Icons.Default.Visibility, CategoryPink, categoryCount + 8),
-        SettingsCategory("Lock Screen", "Lock screen controls", Icons.Default.Lock, CategoryDeepPurple, categoryCount + 10),
-        SettingsCategory("Library", "Scan folders, file management", Icons.Default.LibraryMusic, CategoryTeal, categoryCount + 12),
-        SettingsCategory("Export/Import Settings", "Backup and restore", Icons.Default.SaveAlt, CategoryAmber, categoryCount + 14),
-        SettingsCategory("About", "Version info", Icons.Default.Info, CategoryCyan, categoryCount + 16),
+        SettingsCategory("Headset/Bluetooth", "Auto-resume, controls", Icons.Default.Bluetooth, CategoryIndigo, idxHeadset),
+        SettingsCategory("Audio", "Playback, folder continuation", Icons.Default.MusicNote, CategoryBlue, idxAudio),
+        SettingsCategory("Visualization", "Waveform display", Icons.Default.Visibility, CategoryPink, idxVisualization),
+        SettingsCategory("Screen", "Keep screen on", Icons.Default.Lock, CategoryDeepPurple, idxScreen),
+        SettingsCategory("Library", "Scan folders, file management", Icons.Default.LibraryMusic, CategoryTeal, idxLibrary),
+        SettingsCategory("About", "Version info", Icons.Default.Info, CategoryCyan, idxAbout),
     )
 
     Scaffold(
@@ -256,40 +242,8 @@ fun SettingsScreen(
 
             item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
 
-            // ===== Look and Feel =====
-            item { SectionHeader("Look and Feel") }
-
-            item {
-                SettingsToggleRow(
-                    title = "Dark Mode",
-                    subtitle = "Use dark theme",
-                    checked = darkMode,
-                    onToggle = { viewModel.toggleDarkMode() }
-                )
-            }
-
-            item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
-
             // ===== Audio =====
             item { SectionHeader("Audio") }
-
-            item {
-                SettingsToggleRow(
-                    title = "Gapless Playback",
-                    subtitle = "Eliminate silence between tracks",
-                    checked = gaplessPlayback,
-                    onToggle = { viewModel.toggleGaplessPlayback() }
-                )
-            }
-
-            item {
-                SettingsToggleRow(
-                    title = "Crossfade",
-                    subtitle = "Fade between tracks",
-                    checked = crossfadeEnabled,
-                    onToggle = { viewModel.toggleCrossfade() }
-                )
-            }
 
             item {
                 SettingsToggleRow(
@@ -297,59 +251,6 @@ fun SettingsScreen(
                     subtitle = "When queue ends, play next folder alphabetically",
                     checked = continueToNextFolder,
                     onToggle = { viewModel.toggleContinueToNextFolder() }
-                )
-            }
-
-            if (crossfadeEnabled) {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            "Crossfade duration: ${crossfadeDuration}s",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Slider(
-                            value = crossfadeDuration.toFloat(),
-                            onValueChange = { viewModel.setCrossfadeDuration(it.toInt()) },
-                            valueRange = 1f..10f,
-                            steps = 8,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("1s", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("10s", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-
-            item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
-
-            // ===== Album Art =====
-            item { SectionHeader("Album Art") }
-
-            item {
-                SettingsToggleRow(
-                    title = "Show Album Art",
-                    subtitle = "Display album artwork in lists",
-                    checked = showAlbumArt,
-                    onToggle = { viewModel.toggleShowAlbumArt() }
-                )
-            }
-
-            item {
-                SettingsToggleRow(
-                    title = "High Resolution Art",
-                    subtitle = "Load higher quality artwork (uses more memory)",
-                    checked = highResArt,
-                    onToggle = { viewModel.toggleHighResArt() }
                 )
             }
 
@@ -369,17 +270,8 @@ fun SettingsScreen(
 
             item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
 
-            // ===== Lock Screen =====
-            item { SectionHeader("Lock Screen") }
-
-            item {
-                SettingsToggleRow(
-                    title = "Lock Screen Controls",
-                    subtitle = "Show playback controls on lock screen",
-                    checked = showLockScreenControls,
-                    onToggle = { viewModel.toggleShowLockScreenControls() }
-                )
-            }
+            // ===== Screen =====
+            item { SectionHeader("Screen") }
 
             item {
                 SettingsToggleRow(
@@ -478,39 +370,6 @@ fun SettingsScreen(
 
             item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
 
-            // ===== Export/Import =====
-            item { SectionHeader("Export/Import") }
-
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.exportSettings() }
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Column {
-                        Text("Export Settings", style = MaterialTheme.typography.bodyLarge)
-                        Text("Save settings as JSON", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.importSettings() }
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Column {
-                        Text("Import Settings", style = MaterialTheme.typography.bodyLarge)
-                        Text("Restore settings from JSON", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-
-            item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
-
             // ===== About =====
             item { SectionHeader("About") }
 
@@ -522,8 +381,13 @@ fun SettingsScreen(
                 ) {
                     Text("Music Player", style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(4.dp))
+                    val versionName = remember {
+                        try {
+                            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
+                        } catch (_: Exception) { "?" }
+                    }
                     Text(
-                        "Version 1.0",
+                        "Version $versionName",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -72,6 +72,7 @@ import com.musicplayer.app.ui.components.SongArtModel
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.random.Random
+import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.launch
 
 private enum class SwipeDirection { VERTICAL, HORIZONTAL }
@@ -85,6 +86,7 @@ fun NowPlayingScreen(
     viewModel: NowPlayingViewModel = hiltViewModel()
 ) {
     val playbackState by viewModel.playbackState.collectAsState()
+    val showWaveform by viewModel.showWaveform.collectAsState()
     val song = playbackState.currentSong
 
     // Adjacent songs from queue for thumbnails
@@ -100,11 +102,15 @@ fun NowPlayingScreen(
     val offsetX = remember { Animatable(0f) }
     var swipeDirection by remember { mutableStateOf<SwipeDirection?>(null) }
     val swipeCoroutineScope = rememberCoroutineScope()
-    val dismissThreshold = 300f
-    val changeTrackThreshold = 120f
+    // Density-independent: raw px made a track-change swipe ~40 dp on a 480 dpi phone
+    // and 120 dp on mdpi.
+    val density = LocalDensity.current
+    val dismissThreshold = with(density) { 120.dp.toPx() }
+    val changeTrackThreshold = with(density) { 56.dp.toPx() }
+    val fadeDistance = with(density) { 240.dp.toPx() }
 
     // Background alpha fades as user swipes down — reveals previous screen
-    val backgroundAlpha = (1f - (offsetY.value / 600f)).coerceIn(0f, 1f)
+    val backgroundAlpha = (1f - (offsetY.value / fadeDistance)).coerceIn(0f, 1f)
 
     Box(modifier = modifier) {
         // Fading scrim — reveals what's behind during swipe down
@@ -301,13 +307,15 @@ fun NowPlayingScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Animated Waveform Bars
-                    AnimatedWaveformBars(
-                        isPlaying = playbackState.isPlaying,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                    )
+                    // Animated Waveform Bars (Settings > Visualization)
+                    if (showWaveform) {
+                        AnimatedWaveformBars(
+                            isPlaying = playbackState.isPlaying,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 

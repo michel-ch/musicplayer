@@ -1,6 +1,8 @@
 package com.musicplayer.app.data.repository
 
+import android.Manifest
 import android.content.ContentUris
+import android.content.pm.PackageManager
 import android.content.Context
 import android.net.Uri
 import android.os.Build
@@ -23,11 +25,13 @@ import com.musicplayer.app.domain.model.Song
 import com.musicplayer.app.domain.model.Year
 import com.musicplayer.app.domain.repository.MusicRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -261,6 +265,11 @@ class MusicRepositoryImpl @Inject constructor(
             diskCacheLoaded = true
         }
         if (scannedThisSession && !force) return
+        // A scan without the audio permission (first launch, while the system dialog is
+        // still up) returns nothing on API 29+ and throws on older APIs. Don't consume
+        // the once-per-session flag or wipe the disk cache with an empty result; the
+        // permission callback triggers a forced refresh once access is granted.
+        if (!hasAudioPermission()) return
         scannedThisSession = true
 
         val prefs = dataStore.data.first()
@@ -272,6 +281,22 @@ class MusicRepositoryImpl @Inject constructor(
             songsCache.value = scanned
         }
         cachedSongDao.replaceAll(scanned.map { it.toEntity() })
+    }
+
+    private fun hasAudioPermission(): Boolean {
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        return context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private suspend fun evictDeleted(song: Song) {
+        songsCache.update { it.filter { s -> s.id != song.id } }
+        // Otherwise the disk cache re-seeds the deleted song on next launch until a
+        // full rescan completes.
+        cachedSongDao.deleteById(song.id)
     }
 
     private fun Song.toEntity() = CachedSongEntity(
@@ -320,19 +345,20 @@ class MusicRepositoryImpl @Inject constructor(
         composer = composer
     )
 
-    override suspend fun deleteSong(song: Song): DeleteResult {
+    // ContentResolver + File I/O; callers run on Main.immediate, so hop to IO here.
+    override suspend fun deleteSong(song: Song): DeleteResult = withContext(Dispatchers.IO) {
         val contentUri = resolveContentUri(song)
 
         if (contentUri != null) {
             try {
                 val rows = context.contentResolver.delete(contentUri, null, null)
                 if (rows > 0) {
-                    songsCache.update { it.filter { s -> s.id != song.id } }
-                    return DeleteResult.Deleted
+                    evictDeleted(song)
+                    return@withContext DeleteResult.Deleted
                 }
                 Log.w(TAG, "delete($contentUri) returned 0 rows")
             } catch (e: SecurityException) {
-                return requestDeleteConfirmation(song, contentUri, e)
+                return@withContext requestDeleteConfirmation(song, contentUri, e)
                     ?: DeleteResult.Failed.also { Log.w(TAG, "SecurityException with no recovery path", e) }
             } catch (e: Exception) {
                 Log.w(TAG, "contentResolver.delete threw", e)
@@ -344,8 +370,8 @@ class MusicRepositoryImpl @Inject constructor(
             try {
                 val file = java.io.File(song.filePath)
                 if (file.exists() && file.delete()) {
-                    songsCache.update { it.filter { s -> s.id != song.id } }
-                    return DeleteResult.Deleted
+                    evictDeleted(song)
+                    return@withContext DeleteResult.Deleted
                 }
                 Log.w(TAG, "File.delete failed for ${song.filePath}")
             } catch (e: Exception) {
@@ -353,22 +379,22 @@ class MusicRepositoryImpl @Inject constructor(
             }
         }
 
-        return DeleteResult.Failed
+        DeleteResult.Failed
     }
 
-    override suspend fun finalizeDelete(song: Song): DeleteResult {
+    override suspend fun finalizeDelete(song: Song): DeleteResult = withContext(Dispatchers.IO) {
         // R+: createDeleteRequest already performed the delete on user confirmation.
         // Q: the RecoverableSecurityException only granted permission — retry the delete now.
         if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
             val contentUri = resolveContentUri(song)
             if (contentUri == null) {
                 Log.w(TAG, "finalizeDelete: could not resolve content URI for ${song.filePath}")
-                return DeleteResult.Failed
+                return@withContext DeleteResult.Failed
             }
-            return try {
+            return@withContext try {
                 val rows = context.contentResolver.delete(contentUri, null, null)
                 if (rows > 0) {
-                    songsCache.update { it.filter { s -> s.id != song.id } }
+                    evictDeleted(song)
                     DeleteResult.Deleted
                 } else {
                     Log.w(TAG, "finalizeDelete: delete returned 0 rows on Q")
@@ -380,8 +406,8 @@ class MusicRepositoryImpl @Inject constructor(
             }
         }
 
-        songsCache.update { it.filter { s -> s.id != song.id } }
-        return DeleteResult.Deleted
+        evictDeleted(song)
+        DeleteResult.Deleted
     }
 
     override suspend fun removeFromCache(song: Song) {

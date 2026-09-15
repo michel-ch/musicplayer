@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -106,30 +107,23 @@ fun MusicPlayerRoot(
         LocalConfiguration.current.screenHeightDp.dp.toPx()
     }
 
-    // On app launch, navigate to the source screen of the last played song
-    var hasNavigatedToSource by remember { mutableStateOf(false) }
+    // On app launch, navigate to the source screen of the last played song.
+    // rememberSaveable: with plain remember every rotation re-ran this and threw the
+    // user out of whatever screen they were on.
+    var hasNavigatedToSource by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(sourceRoute, playbackState.currentSong) {
         if (!hasNavigatedToSource && sourceRoute != null && playbackState.currentSong != null) {
             hasNavigatedToSource = true
-            navController.navigate(sourceRoute!!) {
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
+            // A route persisted by an older build may be unencoded and unmatchable;
+            // never let a bad saved route crash every cold start.
+            runCatching {
+                navController.navigate(sourceRoute!!) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
                 }
-                launchSingleTop = true
-                restoreState = true
-            }
-        }
-    }
-
-    // Handle notification click -> open NowPlaying overlay
-    val shouldNavigateToNowPlaying by MainActivity.navigateToNowPlaying.collectAsState()
-    LaunchedEffect(shouldNavigateToNowPlaying) {
-        if (shouldNavigateToNowPlaying) {
-            MainActivity.consumeNowPlayingNavigation()
-            if (!showNowPlaying) {
-                nowPlayingOffsetY.snapTo(screenHeightPx)
-                showNowPlaying = true
-                nowPlayingOffsetY.animateTo(0f, tween(350))
             }
         }
     }
@@ -138,23 +132,22 @@ fun MusicPlayerRoot(
     val showNavBar = currentDestination?.route !in hideNavBarRoutes &&
             currentDestination?.route != null
 
-    // On Library screen with a song playing: back opens NowPlaying first
+    // On Library screen with a song playing: back opens NowPlaying first — once.
+    // Without the latch, dismissing the overlay re-armed this handler and Back could
+    // never leave the app (open → dismiss → open …). It re-arms on the next visit.
+    var backOpenedNowPlaying by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(currentDestination?.route) {
+        if (currentDestination?.route != Screen.Library.route) backOpenedNowPlaying = false
+    }
     BackHandler(
         enabled = currentDestination?.route == Screen.Library.route &&
-                playbackState.currentSong != null && !showNowPlaying
+                playbackState.currentSong != null && !showNowPlaying && !backOpenedNowPlaying
     ) {
+        backOpenedNowPlaying = true
         coroutineScope.launch {
             nowPlayingOffsetY.snapTo(screenHeightPx)
             showNowPlaying = true
             nowPlayingOffsetY.animateTo(0f, tween(350))
-        }
-    }
-
-    // Back handler for dismissing NowPlaying overlay
-    BackHandler(enabled = showNowPlaying) {
-        coroutineScope.launch {
-            nowPlayingOffsetY.animateTo(screenHeightPx, tween(300))
-            showNowPlaying = false
         }
     }
 
@@ -165,6 +158,20 @@ fun MusicPlayerRoot(
                 showNowPlaying = true
                 nowPlayingOffsetY.animateTo(0f, tween(350))
             }
+        }
+    }
+
+    // Handle notification click -> open NowPlaying overlay.
+    // consumeNowPlayingNavigation() flips the key back to false, which cancels this
+    // effect's coroutine on the next recomposition. Running the animation inline here
+    // therefore left showNowPlaying = true with the overlay stuck off-screen, hiding the
+    // MiniPlayer and nav bar. Delegate to openNowPlaying(), whose coroutineScope
+    // survives the effect restart.
+    val shouldNavigateToNowPlaying by MainActivity.navigateToNowPlaying.collectAsState()
+    LaunchedEffect(shouldNavigateToNowPlaying) {
+        if (shouldNavigateToNowPlaying) {
+            MainActivity.consumeNowPlayingNavigation()
+            openNowPlaying()
         }
     }
 
@@ -243,6 +250,17 @@ fun MusicPlayerRoot(
             )
         }
 
+        // Back handler for dismissing NowPlaying overlay. Registered here, after
+        // NavGraph, so it takes priority over per-screen BackHandlers (the dispatcher
+        // picks the most recently registered enabled callback) — otherwise Back with
+        // the overlay open acted on the screen underneath first.
+        BackHandler(enabled = showNowPlaying) {
+            coroutineScope.launch {
+                nowPlayingOffsetY.animateTo(screenHeightPx, tween(300))
+                showNowPlaying = false
+            }
+        }
+
         // NowPlaying full-screen overlay
         if (showNowPlaying) {
             NowPlayingScreen(
@@ -251,12 +269,14 @@ fun MusicPlayerRoot(
                         nowPlayingOffsetY.animateTo(screenHeightPx, tween(300))
                         showNowPlaying = false
                         val target = sourceRoute ?: Screen.Queue.route
-                        navController.navigate(target) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
+                        runCatching {
+                            navController.navigate(target) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
                         }
                     }
                 },

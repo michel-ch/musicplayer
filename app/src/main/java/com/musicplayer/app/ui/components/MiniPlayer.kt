@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -52,7 +53,9 @@ fun MiniPlayer(
     val shape = RoundedCornerShape(24.dp)
     val offsetX = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
-    val swipeThreshold = 150f
+    val density = LocalDensity.current
+    val swipeThreshold = with(density) { 72.dp.toPx() }
+    val maxDrag = with(density) { 144.dp.toPx() }
 
     Surface(
         modifier = modifier
@@ -84,7 +87,7 @@ fun MiniPlayer(
                     },
                     onHorizontalDrag = { _, dragAmount ->
                         coroutineScope.launch {
-                            val newValue = (offsetX.value + dragAmount).coerceIn(-300f, 300f)
+                            val newValue = (offsetX.value + dragAmount).coerceIn(-maxDrag, maxDrag)
                             offsetX.snapTo(newValue)
                         }
                     }

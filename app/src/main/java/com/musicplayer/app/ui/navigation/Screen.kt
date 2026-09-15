@@ -1,8 +1,17 @@
 package com.musicplayer.app.ui.navigation
 
+import android.net.Uri
+
+// Names are interpolated into the path, so anything containing '/', '?', '#' or '%'
+// ("Hip-Hop/Rap", "AC/DC") must be encoded or the destination cannot be matched.
+// Navigation decodes path arguments before handing them to the destination.
 sealed class Screen(val route: String) {
     data object Library : Screen("library")
-    data object Folders : Screen("folders")
+    data object Folders : Screen("folders") {
+        // Optional pre-selected folder; the bare route still matches this pattern.
+        const val PATTERN = "folders?path={path}"
+        fun createRoute(path: String) = "folders?path=${Uri.encode(path)}"
+    }
     data object Playlists : Screen("playlists")
     data object NowPlaying : Screen("now_playing")
     data object Settings : Screen("settings")
@@ -22,18 +31,18 @@ sealed class Screen(val route: String) {
         fun createRoute(albumId: Long) = "album/$albumId"
     }
     data object ArtistDetail : Screen("artist/{artistName}") {
-        fun createRoute(artistName: String) = "artist/$artistName"
+        fun createRoute(artistName: String) = "artist/${Uri.encode(artistName)}"
     }
     data object GenreDetail : Screen("genre/{genreName}") {
-        fun createRoute(genreName: String) = "genre/$genreName"
+        fun createRoute(genreName: String) = "genre/${Uri.encode(genreName)}"
     }
     data object YearDetail : Screen("year/{year}") {
         fun createRoute(year: Int) = "year/$year"
     }
     data object AlbumArtistDetail : Screen("album_artist/{artistName}") {
-        fun createRoute(artistName: String) = "album_artist/$artistName"
+        fun createRoute(artistName: String) = "album_artist/${Uri.encode(artistName)}"
     }
     data object ComposerDetail : Screen("composer/{composerName}") {
-        fun createRoute(composerName: String) = "composer/$composerName"
+        fun createRoute(composerName: String) = "composer/${Uri.encode(composerName)}"
     }
 }

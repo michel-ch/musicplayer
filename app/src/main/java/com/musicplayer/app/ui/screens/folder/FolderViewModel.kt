@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.musicplayer.app.domain.model.Folder
@@ -36,12 +37,14 @@ class FolderViewModel @Inject constructor(
     val playbackController: PlaybackController,
     private val dataStore: DataStore<Preferences>,
     private val deletionHandler: SongDeletionHandler,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     val folders: StateFlow<List<Folder>> = musicRepository.getFolders()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    private val _selectedFolder = MutableStateFlow<String?>(null)
+    // Pre-selected when opened from Search or the folder hierarchy ("folders?path=…").
+    private val _selectedFolder = MutableStateFlow<String?>(savedStateHandle.get<String>("path"))
     val selectedFolder: StateFlow<String?> = _selectedFolder.asStateFlow()
 
     private val _sortOption = MutableStateFlow(SortOption.TITLE_ASC)

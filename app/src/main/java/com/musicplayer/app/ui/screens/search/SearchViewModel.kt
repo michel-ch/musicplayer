@@ -8,6 +8,7 @@ import com.musicplayer.app.domain.model.Album
 import com.musicplayer.app.domain.model.Artist
 import com.musicplayer.app.domain.model.Composer
 import com.musicplayer.app.domain.model.Folder
+import com.musicplayer.app.domain.model.Genre
 import com.musicplayer.app.domain.model.Song
 import com.musicplayer.app.domain.repository.MusicRepository
 import com.musicplayer.app.player.PlaybackController
@@ -78,6 +79,13 @@ class SearchViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    val genres: StateFlow<List<Genre>> = _searchQuery.flatMapLatest { query ->
+        musicRepository.getGenres().map { genres ->
+            if (query.isBlank()) emptyList()
+            else genres.filter { it.name.contains(query, ignoreCase = true) }
+        }
+    }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
     fun setQuery(query: String) {
         _searchQuery.value = query
     }
@@ -89,7 +97,11 @@ class SearchViewModel @Inject constructor(
     fun saveSearch(query: String) {
         if (query.isBlank()) return
         viewModelScope.launch {
+            // Re-searching a term moves it to the top instead of adding a duplicate
+            // row, and the table is bounded to the 20 entries the UI can show.
+            searchHistoryDao.deleteByQuery(query.trim())
             searchHistoryDao.insert(SearchHistoryEntity(query = query.trim()))
+            searchHistoryDao.trimToRecent()
         }
     }
 

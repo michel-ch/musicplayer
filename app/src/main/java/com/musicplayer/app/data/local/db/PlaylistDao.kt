@@ -64,14 +64,19 @@ interface PlaylistDao {
     @Query("SELECT COUNT(*) FROM playlist_songs WHERE playlistId = :playlistId")
     suspend fun getPlaylistSongCountSync(playlistId: Long): Int
 
+    // Positions are never compacted after a removal, so COUNT(*) can collide with an
+    // existing position and break ORDER BY position. MAX + 1 is always free.
+    @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM playlist_songs WHERE playlistId = :playlistId")
+    suspend fun getNextPosition(playlistId: Long): Int
+
     @Transaction
     suspend fun addSongAtEnd(playlistId: Long, songId: Long) {
-        val count = getPlaylistSongCountSync(playlistId)
+        val position = getNextPosition(playlistId)
         insertPlaylistSong(
             PlaylistSongEntity(
                 playlistId = playlistId,
                 songId = songId,
-                position = count
+                position = position
             )
         )
     }

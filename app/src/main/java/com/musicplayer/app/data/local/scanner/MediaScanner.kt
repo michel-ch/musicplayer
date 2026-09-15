@@ -87,9 +87,10 @@ class MediaScanner @Inject constructor(
 
                 val rawTrack = cursor.getInt(trackCol)
                 val (discNumber, trackNumber) = if (discCol >= 0) {
-                    // API 30+: use dedicated disc column
+                    // API 30+: use dedicated disc column. The scanner still stores
+                    // TRACK as disc * 1000 + track when a disc tag exists, so strip it.
                     val disc = cursor.getInt(discCol).takeIf { it > 0 } ?: 1
-                    val track = rawTrack.takeIf { it > 0 } ?: 0
+                    val track = (if (rawTrack >= 1000) rawTrack % 1000 else rawTrack).takeIf { it > 0 } ?: 0
                     disc to track
                 } else {
                     // Older APIs: parse from combined track field (disc * 1000 + track)
@@ -173,7 +174,10 @@ class MediaScanner @Inject constructor(
         folderUris: Map<String, String>,
         songs: MutableList<Song>
     ) {
-        val existingPaths = songs.map { it.filePath }.toSet()
+        // Mutable: files found in one custom folder must be registered so an
+        // overlapping (nested) folder doesn't add them a second time with the same id,
+        // which crashes LazyColumn on duplicate keys.
+        val existingPaths = songs.map { it.filePath }.toMutableSet()
         val audioExtensions = setOf("mp3", "m4a", "flac", "wav", "ogg", "aac", "wma", "opus")
         for (path in folderPaths) {
             val rootFolder = File(path)
@@ -183,7 +187,7 @@ class MediaScanner @Inject constructor(
             if (canAccessViaFile) {
                 // File API works — use it
                 rootFolder.walk().filter { it.isFile && it.extension.lowercase() in audioExtensions }.forEach { file ->
-                    if (file.absolutePath in existingPaths) return@forEach
+                    if (!existingPaths.add(file.absolutePath)) return@forEach
 
                     val folderPath = file.parent ?: ""
                     val folderName = File(folderPath).name
@@ -223,7 +227,7 @@ class MediaScanner @Inject constructor(
         dir: DocumentFile,
         rootPath: String,
         audioExtensions: Set<String>,
-        existingPaths: Set<String>,
+        existingPaths: MutableSet<String>,
         songs: MutableList<Song>
     ) {
         val children = dir.listFiles() ?: return
@@ -235,7 +239,7 @@ class MediaScanner @Inject constructor(
                 val ext = name.substringAfterLast('.', "").lowercase()
                 if (ext !in audioExtensions) continue
                 val uri = child.uri
-                if (uri.toString() in existingPaths) continue
+                if (!existingPaths.add(uri.toString())) continue
 
                 val folderName = dir.name ?: File(rootPath).name
 

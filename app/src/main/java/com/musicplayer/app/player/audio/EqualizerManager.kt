@@ -1,6 +1,8 @@
 package com.musicplayer.app.player.audio
 
 import android.media.audiofx.BassBoost
+import android.media.audiofx.DynamicsProcessing
+import android.os.Build
 import android.media.audiofx.Equalizer
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -40,6 +42,7 @@ class EqualizerManager @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
+    private var limiter: DynamicsProcessing? = null
 
     private val _isEnabled = MutableStateFlow(false)
     val isEnabled: StateFlow<Boolean> = _isEnabled.asStateFlow()
@@ -100,16 +103,29 @@ class EqualizerManager @Inject constructor(
             }
             equalizer = eq
             bassBoost = BassBoost(0, audioSessionId).apply {
-                scope.launch { restoreBassBoost(this@apply) }
+                scope.launch {
+                    // The DataStore read suspends; release() may run meanwhile (service
+                    // teardown, second session-id change). Touching a released effect
+                    // throws IllegalStateException and would crash the process.
+                    try {
+                        restoreBassBoost(this@apply)
+                    } catch (_: Exception) {
+                    }
+                }
             }
             // Restore base bands + preamp/tone scalars, THEN apply the combined effect
             // to the fresh hardware. Sequencing matters (bands before offsets), and this
             // re-applies preamp/tone after an audio-session-id change instead of silently
             // dropping them — they previously only ever lived on the released Equalizer.
+            createLimiter(audioSessionId)
             scope.launch {
-                restoreSettings(eq)
-                restoreExtendedSettings()
-                applyEffects()
+                try {
+                    restoreSettings(eq)
+                    restoreExtendedSettings()
+                    applyEffects()
+                    applyLimiter()
+                } catch (_: Exception) {
+                }
             }
         } catch (_: Exception) {
             // EQ not supported on some devices
@@ -130,11 +146,16 @@ class EqualizerManager @Inject constructor(
 
             val savedBands = prefs[EQ_BANDS_KEY]
             if (savedBands != null) {
+                val numBands = eq.numberOfBands.toInt()
+                val minLevel = _minBandLevel.value
+                val maxLevel = _maxBandLevel.value
+                // Reconcile with the hardware band count and level range: a snapshot
+                // restored from another device may have more bands or out-of-range levels.
                 val levels = savedBands.split(",").mapNotNull { it.toIntOrNull() }
+                    .map { it.coerceIn(minLevel, maxLevel) }
+                    .let { saved -> (0 until numBands).map { saved.getOrElse(it) { 0 } } }
                 levels.forEachIndexed { index, level ->
-                    if (index < eq.numberOfBands) {
-                        eq.setBandLevel(index.toShort(), level.toShort())
-                    }
+                    eq.setBandLevel(index.toShort(), level.toShort())
                 }
                 _bandLevels.value = levels
             } else {
@@ -275,8 +296,51 @@ class EqualizerManager @Inject constructor(
         }
     }
 
+    /**
+     * The limiter is a DynamicsProcessing limiter stage (API 28+). Strength 0 disables
+     * it; 100% pulls the ceiling down to -12 dB with a fast attack, so peaks are
+     * clamped instead of clipping. Before this the slider only wrote a preference.
+     */
+    private fun createLimiter(audioSessionId: Int) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        try {
+            val config = DynamicsProcessing.Config.Builder(
+                DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION,
+                2,      // stereo
+                false, 0, // pre-EQ
+                false, 0, // multi-band compressor
+                false, 0, // post-EQ
+                true      // limiter
+            ).build()
+            limiter = DynamicsProcessing(0, audioSessionId, config)
+        } catch (_: Exception) {
+            limiter = null // not supported on this device/route
+        }
+    }
+
+    private fun applyLimiter() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        val dp = limiter ?: return
+        val strength = _limiterStrength.value.coerceIn(0f, 100f)
+        try {
+            for (channel in 0 until 2) {
+                val stage = dp.getLimiterByChannelIndex(channel)
+                stage.isEnabled = strength > 0f
+                stage.threshold = -(strength / 100f) * 12f
+                stage.attackTime = 1f
+                stage.releaseTime = 60f
+                stage.ratio = 10f
+                stage.postGain = 0f
+                dp.setLimiterByChannelIndex(channel, stage)
+            }
+            dp.enabled = strength > 0f
+        } catch (_: Exception) {
+        }
+    }
+
     fun setLimiterStrength(strength: Float) {
         _limiterStrength.value = strength
+        applyLimiter()
         scope.launch {
             dataStore.edit { it[LIMITER_KEY] = strength }
         }
@@ -295,5 +359,7 @@ class EqualizerManager @Inject constructor(
         equalizer = null
         bassBoost?.release()
         bassBoost = null
+        try { limiter?.release() } catch (_: Exception) {}
+        limiter = null
     }
 }

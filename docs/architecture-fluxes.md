@@ -1,9 +1,9 @@
 # Architecture Fluxes (F1–F18)
 
-Master list of the principal data/control flows in the app. Every diagram
-([`architecture.mmd`](architecture.mmd), [`architecture.drawio`](architecture.drawio),
-and the Mermaid block in the [README](../README.md)) is a *filtered view* of this
-table — the `F#` is the join key across all of them.
+Master list of the principal data/control flows in the app. The architecture
+diagram ([`architecture.html`](architecture.html), exported to
+[`architecture.svg`](architecture.svg) and embedded in the [README](../README.md))
+is a *filtered view* of this table — the `F#` is the join key between them.
 
 Each flux is grounded in source (`file:line`, paths relative to
 `app/src/main/java/com/musicplayer/app/`). When code and a diagram disagree, the

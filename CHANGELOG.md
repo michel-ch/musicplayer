@@ -5,7 +5,41 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each version corresponds to a
 git tag (`vX.Y.Z`) and a GitHub release.
 
-## [Unreleased]
+## [1.1.14] - 2026-09-15
+
+### Fixed
+- Mini player and bottom nav disappearing after tapping the media notification: the Now Playing
+  open animation cancelled itself and left the overlay parked off-screen.
+- Notification Close reset the current song to the first queue entry.
+- Queue-tab removal left the song in ExoPlayer; "Play Next" appended to the end of the queue;
+  queue operations after a notification Close acted on an empty player.
+- Unplayable file caused an infinite re-prepare loop; now one retry per item, then skip.
+- Pause from the notification or headset was not recorded as a user pause, so Bluetooth and
+  foreground auto-resume restarted it; a finished queue no longer auto-resumes.
+- Playback resumes from the persisted queue when the system starts the service after process
+  death (`onPlaybackResumption`); restore/connect race and sticky headset broadcast handled.
+- Crash when the equalizer restore touched a released effect; band levels clamped to hardware.
+- Navigation crash on artist/genre/composer names containing `/` (persisted route also crashed
+  every cold start); routes are now encoded and guarded.
+- First launch scanned before the storage permission and wiped the cache; scan now waits and
+  rescans on grant. Nested custom folders produced duplicate song ids (LazyColumn crash).
+- Playlist positions collided after removal; deletes ran on the main thread and left cached rows;
+  multi-disc track numbers on Android 11+; missing write permission on Android 9 and below.
+- Settings shortcuts scrolled to the wrong rows; About showed "Version 1.0"; rotation
+  re-navigated to the last source screen; Back could never exit from Library.
+- Search history duplicates; Genres search filter and folder results did nothing; folder
+  hierarchy was a dead end; Song Info size was blank; swipe thresholds now density independent.
+
+### Changed
+- Equalizer Limiter now drives a real `DynamicsProcessing` limiter stage (Android 9+).
+- Show Waveform setting is wired to Now Playing; playlist song removal asks for confirmation.
+- Removed settings controls that had no implementation (Dark Mode, Gapless, Crossfade,
+  Album Art, Lock Screen Controls, Export/Import).
+
+### Docs
+- Architecture diagram redrawn with [diagram-design](https://github.com/cathrynlavery/diagram-design):
+  `docs/architecture.html` is the editable source, `docs/architecture.svg` its export. The draw.io
+  and Mermaid sources and the `scripts/render_drawio.py` renderer are gone.
 
 ### Removed
 - Unused `media3-ui` dependency — playback runs on `media3-session` + `media3-exoplayer`

@@ -112,12 +112,15 @@ Data/control flows are grounded in source and tracked as `F1–F18` in
 
 <img src="docs/architecture.svg" alt="System architecture — data/control fluxes F1–F18" width="960">
 
-*Runtime, data, persistence, and system-integration fluxes (F1–F18).
-[Edit in draw.io](docs/architecture.drawio) · [Mermaid source](docs/architecture.mmd) · [Flux descriptions](docs/architecture-fluxes.md)*
+*Runtime, data, persistence, and system-integration fluxes.
+[Editable source](docs/architecture.html) · [Flux descriptions](docs/architecture-fluxes.md)*
 
-> The `.drawio` is the editable source; `docs/architecture.svg` is **regenerated** from it via
-> `python scripts/render_drawio.py docs/architecture.drawio docs/architecture.svg` — never hand-edit
-> the SVG. Keep the `F#` identical across the diagram and the flux list.
+> `docs/architecture.html` is the editable source, drawn with
+> [diagram-design](https://github.com/cathrynlavery/diagram-design) (`/diagram-design:import-drawio`
+> conventions: 4px grid, orthogonal connectors, one focal node). `docs/architecture.svg` is
+> **exported** from it (`/diagram-design:export-diagram docs/architecture.html`) — never hand-edit
+> the SVG. The diagram is a `balanced` view: fluxes that are not drawn as edges (F7, F8, F13, F15,
+> F18) appear as node sublabels or only in the flux list. Keep the `F#` identical across both.
 
 - **`domain/`** — Pure Kotlin. `Song`, `Album`, `Artist`, `Folder`, `Playlist`, `Genre`, `Year`, `Composer`, `SortOption`, `DeleteResult`. Repository interfaces (`MusicRepository`, `PlaylistRepository`) and `SortSongsUseCase`.
 - **`data/`** — `MusicRepositoryImpl` (in-memory `MutableStateFlow<List<Song>>` + Room `cached_songs` snapshot), `PlaylistRepositoryImpl`, `MediaScanner`, Room database (v3), DAOs.

@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -87,6 +88,7 @@ fun NowPlayingScreen(
 ) {
     val playbackState by viewModel.playbackState.collectAsState()
     val showWaveform by viewModel.showWaveform.collectAsState()
+    val skipForwardSeconds by viewModel.skipForwardSeconds.collectAsState()
     val song = playbackState.currentSong
 
     // Adjacent songs from queue for thumbnails
@@ -463,6 +465,15 @@ fun NowPlayingScreen(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next",
                             modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    // Skip forward
+                    IconButton(onClick = { viewModel.skipForward() }) {
+                        Icon(
+                            imageVector = Icons.Default.FastForward,
+                            contentDescription = "Skip forward ${skipForwardSeconds}s",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 

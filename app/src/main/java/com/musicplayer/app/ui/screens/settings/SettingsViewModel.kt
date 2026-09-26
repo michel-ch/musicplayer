@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.musicplayer.app.domain.repository.MusicRepository
@@ -27,6 +28,9 @@ class SettingsViewModel @Inject constructor(
         val RESUME_ON_APP_FOREGROUND_KEY = booleanPreferencesKey("resume_on_app_foreground")
         private val KEEP_SCREEN_ON_KEY = booleanPreferencesKey("keep_screen_on")
         private val CONTINUE_TO_NEXT_FOLDER_KEY = booleanPreferencesKey("continue_to_next_folder")
+        val SKIP_FORWARD_SECONDS_KEY = intPreferencesKey("skip_forward_seconds")
+        const val DEFAULT_SKIP_FORWARD_SECONDS = 30
+        val SKIP_FORWARD_OPTIONS = listOf(15, 30, 60)
     }
 
     val scanFolders: StateFlow<Set<String>> = musicRepository.getScanFolders()
@@ -51,6 +55,14 @@ class SettingsViewModel @Inject constructor(
     val continueToNextFolder: StateFlow<Boolean> = dataStore.data
         .map { prefs -> prefs[CONTINUE_TO_NEXT_FOLDER_KEY] ?: false }
         .stateIn(viewModelScope, SharingStarted.Lazily, false)
+
+    val skipForwardSeconds: StateFlow<Int> = dataStore.data
+        .map { prefs -> prefs[SKIP_FORWARD_SECONDS_KEY] ?: DEFAULT_SKIP_FORWARD_SECONDS }
+        .stateIn(viewModelScope, SharingStarted.Lazily, DEFAULT_SKIP_FORWARD_SECONDS)
+
+    fun setSkipForwardSeconds(seconds: Int) {
+        viewModelScope.launch { dataStore.edit { prefs -> prefs[SKIP_FORWARD_SECONDS_KEY] = seconds } }
+    }
 
     fun toggleShowWaveform() = toggleBoolPref(SHOW_WAVEFORM_KEY, true)
     fun toggleAutoResumeOnHeadset() = toggleBoolPref(AUTO_RESUME_HEADSET_KEY, false)

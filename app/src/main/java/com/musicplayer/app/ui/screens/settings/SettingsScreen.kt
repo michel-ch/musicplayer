@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -97,6 +98,7 @@ fun SettingsScreen(
     val resumeOnAppForeground by viewModel.resumeOnAppForeground.collectAsState()
     val keepScreenOn by viewModel.keepScreenOn.collectAsState()
     val continueToNextFolder by viewModel.continueToNextFolder.collectAsState()
+    val skipForwardSeconds by viewModel.skipForwardSeconds.collectAsState()
 
     val context = LocalContext.current
     val listState = rememberLazyListState()
@@ -137,7 +139,7 @@ fun SettingsScreen(
     val categoryCount = 6
     val idxHeadset = categoryCount + 1                       // divider, header
     val idxAudio = idxHeadset + 1 + 2 + 1                    // header, 2 rows, divider
-    val idxVisualization = idxAudio + 1 + 1 + 1
+    val idxVisualization = idxAudio + 1 + 2 + 1                // header, 2 rows, divider
     val idxScreen = idxVisualization + 1 + 1 + 1
     val idxLibrary = idxScreen + 1 + 1 + 1
     // header, folders label, N folders, add button, spacer, rescan row, divider
@@ -145,7 +147,7 @@ fun SettingsScreen(
 
     val settingsCategories = listOf(
         SettingsCategory("Headset/Bluetooth", "Auto-resume, controls", Icons.Default.Bluetooth, CategoryIndigo, idxHeadset),
-        SettingsCategory("Audio", "Playback, folder continuation", Icons.Default.MusicNote, CategoryBlue, idxAudio),
+        SettingsCategory("Audio", "Skip forward, folder continuation", Icons.Default.MusicNote, CategoryBlue, idxAudio),
         SettingsCategory("Visualization", "Waveform display", Icons.Default.Visibility, CategoryPink, idxVisualization),
         SettingsCategory("Screen", "Keep screen on", Icons.Default.Lock, CategoryDeepPurple, idxScreen),
         SettingsCategory("Library", "Scan folders, file management", Icons.Default.LibraryMusic, CategoryTeal, idxLibrary),
@@ -252,6 +254,30 @@ fun SettingsScreen(
                     checked = continueToNextFolder,
                     onToggle = { viewModel.toggleContinueToNextFolder() }
                 )
+            }
+
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text("Skip Forward", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Jump forward by this amount on Now Playing",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SettingsViewModel.SKIP_FORWARD_OPTIONS.forEach { seconds ->
+                            FilterChip(
+                                selected = skipForwardSeconds == seconds,
+                                onClick = { viewModel.setSkipForwardSeconds(seconds) },
+                                label = { Text(if (seconds >= 60) "${seconds / 60} min" else "${seconds}s") }
+                            )
+                        }
+                    }
+                }
             }
 
             item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }

@@ -28,6 +28,12 @@ class NowPlayingViewModel @Inject constructor(
         .map { prefs -> prefs[SettingsViewModel.SHOW_WAVEFORM_KEY] ?: true }
         .stateIn(viewModelScope, SharingStarted.Lazily, true)
 
+    val skipForwardSeconds: StateFlow<Int> = dataStore.data
+        .map { prefs -> prefs[SettingsViewModel.SKIP_FORWARD_SECONDS_KEY] ?: SettingsViewModel.DEFAULT_SKIP_FORWARD_SECONDS }
+        .stateIn(viewModelScope, SharingStarted.Lazily, SettingsViewModel.DEFAULT_SKIP_FORWARD_SECONDS)
+
+    fun skipForward() = playbackController.seekBy(skipForwardSeconds.value * 1000L)
+
     fun togglePlayPause() = playbackController.togglePlayPause()
 
     fun play() = playbackController.play()

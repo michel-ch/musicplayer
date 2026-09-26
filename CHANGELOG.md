@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each version corresponds to a
 git tag (`vX.Y.Z`) and a GitHub release.
 
+## [1.1.15] - 2026-09-26
+
+### Added
+- Skip-forward button on Now Playing; jump length (15s / 30s / 1 min, default 30s) selectable in Settings > Audio.
+
 ## [1.1.14] - 2026-09-15
 
 ### Fixed

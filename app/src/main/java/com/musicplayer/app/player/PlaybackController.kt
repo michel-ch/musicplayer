@@ -842,6 +842,14 @@ class PlaybackController @Inject constructor(
         _playbackState.update { it.copy(currentPosition = positionMs) }
     }
 
+    fun seekBy(deltaMs: Long) {
+        val controller = mediaController ?: return
+        val duration = controller.duration
+        var target = controller.currentPosition + deltaMs
+        if (duration > 0) target = target.coerceAtMost(duration)
+        seekTo(target.coerceAtLeast(0L))
+    }
+
     fun seekToFraction(fraction: Float) {
         val duration = mediaController?.duration ?: return
         // Guard against C.TIME_UNSET (a large negative) right after a transition —

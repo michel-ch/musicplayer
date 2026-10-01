@@ -147,7 +147,7 @@ fun SettingsScreen(
 
     val settingsCategories = listOf(
         SettingsCategory("Headset/Bluetooth", "Auto-resume, controls", Icons.Default.Bluetooth, CategoryIndigo, idxHeadset),
-        SettingsCategory("Audio", "Skip forward, folder continuation", Icons.Default.MusicNote, CategoryBlue, idxAudio),
+        SettingsCategory("Audio", "Skip length, folder continuation", Icons.Default.MusicNote, CategoryBlue, idxAudio),
         SettingsCategory("Visualization", "Waveform display", Icons.Default.Visibility, CategoryPink, idxVisualization),
         SettingsCategory("Screen", "Keep screen on", Icons.Default.Lock, CategoryDeepPurple, idxScreen),
         SettingsCategory("Library", "Scan folders, file management", Icons.Default.LibraryMusic, CategoryTeal, idxLibrary),
@@ -262,9 +262,9 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Text("Skip Forward", style = MaterialTheme.typography.bodyLarge)
+                    Text("Skip Length", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Jump forward by this amount on Now Playing",
+                        "Jump forward or backward by this amount on Now Playing",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

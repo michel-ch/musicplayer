@@ -33,6 +33,7 @@ class NowPlayingViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Lazily, SettingsViewModel.DEFAULT_SKIP_FORWARD_SECONDS)
 
     fun skipForward() = playbackController.seekBy(skipForwardSeconds.value * 1000L)
+    fun skipBackward() = playbackController.seekBy(-skipForwardSeconds.value * 1000L)
 
     fun togglePlayPause() = playbackController.togglePlayPause()
 

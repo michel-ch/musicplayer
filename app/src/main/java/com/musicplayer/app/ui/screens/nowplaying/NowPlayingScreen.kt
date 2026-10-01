@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -413,6 +414,15 @@ fun NowPlayingScreen(
                             contentDescription = "Shuffle",
                             tint = if (playbackState.shuffleEnabled) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    // Skip backward
+                    IconButton(onClick = { viewModel.skipBackward() }) {
+                        Icon(
+                            imageVector = Icons.Default.FastRewind,
+                            contentDescription = "Skip backward ${skipForwardSeconds}s",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 

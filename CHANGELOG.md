@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each version corresponds to a
 git tag (`vX.Y.Z`) and a GitHub release.
 
+## [1.1.16] - 2026-10-02
+
+### Added
+- Skip-backward button on Now Playing, mirroring skip-forward so Play stays centered. Uses the same configurable jump length (15s / 30s / 1 min).
+
 ## [1.1.15] - 2026-09-26
 
 ### Added

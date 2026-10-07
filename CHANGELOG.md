@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html). Each version corresponds to a
 git tag (`vX.Y.Z`) and a GitHub release.
 
+## [1.1.17] - 2026-10-07
+
+### Fixed
+- Now Playing controls overflowed the screen width after the skip buttons were added, leaving Play off-center. Each control now has an equal slot so Play is always centered; Play shrinks to 64dp and Previous/Next to 44dp.
+
 ## [1.1.16] - 2026-10-02
 
 ### Added

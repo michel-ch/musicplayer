@@ -404,100 +404,113 @@ fun NowPlayingScreen(
                 // Playback Controls
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Shuffle
-                    IconButton(onClick = { viewModel.toggleShuffle() }) {
-                        Icon(
-                            imageVector = Icons.Default.Shuffle,
-                            contentDescription = "Shuffle",
-                            tint = if (playbackState.shuffleEnabled) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        IconButton(onClick = { viewModel.toggleShuffle() }) {
+                            Icon(
+                                imageVector = Icons.Default.Shuffle,
+                                contentDescription = "Shuffle",
+                                tint = if (playbackState.shuffleEnabled) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
                     // Skip backward
-                    IconButton(onClick = { viewModel.skipBackward() }) {
-                        Icon(
-                            imageVector = Icons.Default.FastRewind,
-                            contentDescription = "Skip backward ${skipForwardSeconds}s",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        IconButton(onClick = { viewModel.skipBackward() }) {
+                            Icon(
+                                imageVector = Icons.Default.FastRewind,
+                                contentDescription = "Skip backward ${skipForwardSeconds}s",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
                     // Previous
-                    FilledTonalIconButton(
-                        onClick = { viewModel.skipToPrevious() },
-                        modifier = Modifier.size(48.dp),
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SkipPrevious,
-                            contentDescription = "Previous",
-                            modifier = Modifier.size(28.dp)
-                        )
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        FilledTonalIconButton(
+                            onClick = { viewModel.skipToPrevious() },
+                            modifier = Modifier.size(44.dp),
+                            shape = CircleShape,
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipPrevious,
+                                contentDescription = "Previous",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
 
                     // Play/Pause
-                    FilledIconButton(
-                        onClick = { viewModel.togglePlayPause() },
-                        modifier = Modifier.size(72.dp),
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (playbackState.isPlaying) Icons.Default.Pause
-                            else Icons.Default.PlayArrow,
-                            contentDescription = if (playbackState.isPlaying) "Pause" else "Play",
-                            modifier = Modifier.size(40.dp)
-                        )
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        FilledIconButton(
+                            onClick = { viewModel.togglePlayPause() },
+                            modifier = Modifier.size(64.dp),
+                            shape = CircleShape,
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = if (playbackState.isPlaying) Icons.Default.Pause
+                                else Icons.Default.PlayArrow,
+                                contentDescription = if (playbackState.isPlaying) "Pause" else "Play",
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
                     }
 
                     // Next
-                    FilledTonalIconButton(
-                        onClick = { viewModel.skipToNext() },
-                        modifier = Modifier.size(48.dp),
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SkipNext,
-                            contentDescription = "Next",
-                            modifier = Modifier.size(28.dp)
-                        )
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        FilledTonalIconButton(
+                            onClick = { viewModel.skipToNext() },
+                            modifier = Modifier.size(44.dp),
+                            shape = CircleShape,
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipNext,
+                                contentDescription = "Next",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     }
 
                     // Skip forward
-                    IconButton(onClick = { viewModel.skipForward() }) {
-                        Icon(
-                            imageVector = Icons.Default.FastForward,
-                            contentDescription = "Skip forward ${skipForwardSeconds}s",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        IconButton(onClick = { viewModel.skipForward() }) {
+                            Icon(
+                                imageVector = Icons.Default.FastForward,
+                                contentDescription = "Skip forward ${skipForwardSeconds}s",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
                     // Repeat
-                    IconButton(onClick = { viewModel.toggleRepeatMode() }) {
-                        Icon(
-                            imageVector = when (playbackState.repeatMode) {
-                                RepeatMode.ONE -> Icons.Default.RepeatOne
-                                else -> Icons.Default.Repeat
-                            },
-                            contentDescription = "Repeat",
-                            tint = if (playbackState.repeatMode != RepeatMode.OFF) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        IconButton(onClick = { viewModel.toggleRepeatMode() }) {
+                            Icon(
+                                imageVector = when (playbackState.repeatMode) {
+                                    RepeatMode.ONE -> Icons.Default.RepeatOne
+                                    else -> Icons.Default.Repeat
+                                },
+                                contentDescription = "Repeat",
+                                tint = if (playbackState.repeatMode != RepeatMode.OFF) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
